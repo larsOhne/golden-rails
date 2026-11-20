@@ -1,0 +1,21 @@
+id,name,via,trains_per_day_per_dir
+GV01,Rotterdam-Basel (Rhine-Alpine),EMM OB DU D K KDZ WI MZ MA KA OG FR BAS,45
+GV02,Rotterdam-Ruhr,EMM OB HAM,15
+GV03,Köln-Basel,KDZ MZ MA KA OG FR BAS,25
+GV04,Hamburg-South (Nürnberg/München),MSH LG UE CE LEH H GÖ KS FD WÜ N A M,22
+GV05,Hamburg-Ruhr/Rhine,MSH HAR ROT HB OS MS HAM OB,20
+GV06,Hamburg-Magdeburg-Leipzig-Dresden,MSH LG UE CE LEH BS MD HAL L DD,15
+GV07,Hamburg-Frankfurt/Mannheim (via Bebra),MSH LG UE CE LEH H HI GÖ BEB FD HU F DA HD MA,18
+GV08,Bremerhaven/Bremen-South,HB VER H HI GÖ BEB FD WÜ N R,12
+GV09,Ruhr-Berlin/East,OB HAM BI MI H LEH WOB SDL SPA,15
+GV10,Ruhr-Frankfurt-Nürnberg,OB DU D K KDZ WI F HU WÜ N,15
+GV11,Hamburg-Berlin/Poland,MSH HAR HH LUD SPA,12
+GV12,Hamburg-Lübeck/Scandinavia,MSH HAR HH HL,10
+GV13,Mannheim-Stuttgart-München/Austria,MA KA S U A M,12
+GV14,Saarland-Mannheim,SB KL MA,15
+GV15,Leipzig-Dresden,L DD,10
+GV16,Aachen/Belgium-Köln,AC K KDZ,15
+GV17,Nürnberg-Regensburg-Passau,N R PA,20
+GV18,München-Regensburg,M R,10
+GV19,Bremen-Rotenburg-Verden-Hannover (Amerikalinie),HB ROT VER H LEH WOB BS MD,8
+GV20,Erfurt-Thüringen-Bebra-Kassel area,EF EIS BEB GÖ H,10

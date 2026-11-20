@@ -1,0 +1,32 @@
+{
+  "n_seeds": 60,
+  "disruption_model": {
+    "p_origin": {
+      "FV": 0.3,
+      "NV": 0.25,
+      "GV": 0.5
+    },
+    "mean_origin": {
+      "FV": 4.5,
+      "NV": 5.5,
+      "GV": 25.0
+    },
+    "p_dwell": 0.2,
+    "mean_dwell": 1.0,
+    "run_sd": 0.03,
+    "rate_track_fault": 0.001,
+    "rate_full_closure": 0.00015,
+    "median_track_fault": 45.0,
+    "median_full_closure": 75.0,
+    "sigma_duration": 0.8,
+    "scale": 1.0
+  },
+  "baseline_delay_min_per_day": 73710.0179827322,
+  "baseline_delay_min_per_year_m": 24.324305934301627,
+  "baseline_punct": {
+    "FV": 0.6162241887905605,
+    "NV": 0.9011186674551548,
+    "GV": 0.8628600823045267
+  },
+  "annuity_factor": 0.02671694065778316
+}
