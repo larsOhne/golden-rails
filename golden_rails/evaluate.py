@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 
 from .costs import etcs_upgrade_cost, track_addition_cost
-from .network import DATA, load_network
+from .network import DATA, load_network, segment_name
 from .sim import DAY_FACTOR, TYPES, DisruptionModel, build_trains, plan_timetable, simulate_day
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -40,17 +40,18 @@ def annuity_factor(r=DISCOUNT_RATE, n=LIFETIME_YEARS):
 def corridor_options(net) -> pd.DataFrame:
     rows = []
     for s in net.segments.values():
+        nm = segment_name(net, s.id)
         c1 = track_addition_cost(s, 1)
         c2 = track_addition_cost(s, 2)
         opts = [
-            ("T1", f"+1 track {s.id} ({s.tracks}->{s.tracks + 1})", f"tracks:{s.id}:{s.tracks + 1}", c1),
-            ("T2", f"+2 tracks {s.id} ({s.tracks}->{s.tracks + 2})", f"tracks:{s.id}:{s.tracks + 2}", c2),
+            ("T1", f"+1 Gleis {nm} ({s.tracks}→{s.tracks + 1})", f"tracks:{s.id}:{s.tracks + 1}", c1),
+            ("T2", f"+2 Gleise {nm} ({s.tracks}→{s.tracks + 2})", f"tracks:{s.id}:{s.tracks + 2}", c2),
         ]
         if not s.etcs:
             ce = etcs_upgrade_cost(s)
-            opts.append(("E", f"ETCS {s.id}", f"etcs:{s.id}", ce))
+            opts.append(("E", f"ETCS {nm}", f"etcs:{s.id}", ce))
             both = {k: c1[k] + ce[k] for k in ("construction", "land", "etcs", "total")}
-            opts.append(("T1E", f"+1 track + ETCS {s.id}", f"tracks:{s.id}:{s.tracks + 1};etcs:{s.id}", both))
+            opts.append(("T1E", f"+1 Gleis + ETCS {nm}", f"tracks:{s.id}:{s.tracks + 1};etcs:{s.id}", both))
         for code, name, changes, c in opts:
             rows.append({"id": f"{code}-{s.id}", "name": name, "changes": changes, "segment": s.id,
                          "option": code, "capex_meur": c["total"],

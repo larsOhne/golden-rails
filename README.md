@@ -66,7 +66,44 @@ Mannheim–Karlsruhe (945 pax-min/€1,000), Lüneburg–Uelzen (599) and Hanau�
 | NBS Hannover–Bielefeld | 95 | 9,000 | 7.8 m | 29 |
 | Emmerich–Oberhausen 3rd track | 70 | 2,500 | 1.4 m | 19 |
 
-Figures: `results/kpi_ranking_new_track.png`, `results/kpi_ranking_all.png`, `results/network_map.png`.
+Figures: `results/kpi_ranking_new_track.png`, `results/kpi_ranking_all.png`, `results/network_map.png`, `results/punctuality_cost_curve.png`.
+
+
+## Was kostet 95 % Pünktlichkeit? (`golden_rails/punctuality.py`)
+
+Die Korridormaßnahmen werden in der Reihenfolge ihres Kosten-Nutzen-Werts zu immer größeren Paketen kumuliert.
+Jedes Paket wird simuliert (30 Tage). Pünktlichkeit = Anteil < 6 min verspätet, wie bei DB.
+
+| Infrastrukturpaket | Capex | Jahreskosten | ICE/IC (Halte) | Alle Fahrgäste |
+|---|---|---|---|---|
+| Heute | – | – | 61 % | 86,7 % |
+| bis €2 Mrd. | €1,9 Mrd. | €52 Mio. | 67 % | 88,5 % |
+| bis €8 Mrd. | €8,0 Mrd. | €236 Mio. | 71 % | 90,4 % |
+| bis €32 Mrd. | €31,5 Mrd. | €1,0 Mrd. | 77 % | 92,4 % |
+| bis €128 Mrd. | €128 Mrd. | €4,1 Mrd. | 85 % | 94,4 % |
+| bis €256 Mrd. | €254 Mrd. | €8,1 Mrd. | 88 % | **95,1 %** |
+| Maximum: ETCS + 2 Gleise überall | €354 Mrd. | €11,2 Mrd. | **88 % (Obergrenze)** | 95,2 % |
+
+* **95 % aller Fahrgäste nur mit Infrastruktur:** ≈ €250 Mrd., also praktisch jeder Korridor ausgebaut. Unrealistisch.
+* **95 % im Fernverkehr nur mit Infrastruktur:** nicht erreichbar, maximal ≈ 88 %. Den Rest verursachen
+  Primärverspätungen (verspätete Abfahrt, verlängerte Haltezeiten), die kein Gleis verhindert.
+* **Kombination** (`results/punctuality_levers.csv`): Anteil der Züge mit Primärverspätung reduziert um …
+
+| | −50 % | −75 % | −90 % |
+|---|---|---|---|
+| heutige Infrastruktur: ICE/IC / alle Fahrgäste | 76 % / 92,1 % | 85 % / **95,3 %** | 92 % / 97,4 % |
+| + Paket €8 Mrd. | 84 % / 94,7 % | 91 % / 97,0 % | **95,0 %** / 98,4 % |
+| + Paket €32 Mrd. | 88 % / **95,9 %** | 93 % / 97,7 % | **96,4 %** / 98,8 % |
+
+  Weniger Störungen an der Infrastruktur selbst (Weichen, Signale, Personen im Gleis) bringen nur 1–2 Punkte.
+
+**Lesart:** 95 % der Fahrgäste ≈ **€8–32 Mrd. Infrastruktur plus Halbierung der Primärverspätungen**.
+95 % im Fernverkehr ≈ **€8–32 Mrd. plus 75–90 % weniger Primärverspätungen**.
+
+**Wichtige Einschränkung:** Das Modell kennt keine Knoten (Köln, Frankfurt, Hamburg) und keine Baustellen. Bei der
+Kalibrierung landet deshalb ein Teil der realen infrastrukturbedingten Verspätung in den „Primärverspätungen“.
+Der Infrastrukturanteil ist damit eher unterschätzt. Die Kosten der betrieblichen Hebel (Fahrzeugreserve,
+Wartung, Personal, Haltezeitmanagement) sind nicht bepreist.
 
 ## Corridor model
 
@@ -127,6 +164,7 @@ pip install -r requirements.txt
 python -m golden_rails.evaluate                     # screen 439 scenarios (16 days), refine top 30 (60 days), ~25 min on 4 cores
 python -m golden_rails.evaluate --refine-options T1,T2,T1E --top 20 --tag _tracks   # refine track-building options
 GR_HEADWAY_ETCS=2.5 python -m golden_rails.evaluate --refine-options E,T1 --top 24 --seeds 40 --tag _etcs2.5
+python -m golden_rails.punctuality             # cost to reach 95 % punctuality, ~8 min
 python -m golden_rails.plots
 pytest -q
 ```

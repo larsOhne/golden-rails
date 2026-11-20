@@ -448,6 +448,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
     delay = dict.fromkeys(TYPES, 0.0)
     pax_delay = dict.fromkeys(TYPES, 0.0)
     pax_total = dict.fromkeys(TYPES, 0.0)
+    pax_ontime = dict.fromkeys(TYPES, 0.0)
     n_stops = dict.fromkeys(TYPES, 0)
     n_punct = dict.fromkeys(TYPES, 0)
     final_delay = dict.fromkeys(TYPES, 0.0)
@@ -516,6 +517,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
                 n_stops[tr.ttype] += 1
                 if dl < 6.0:
                     n_punct[tr.ttype] += 1
+                    pax_ontime[tr.ttype] += w
             if last:
                 final_delay[tr.ttype] += dl
             nxt = tx + DWELL[tr.ttype]
@@ -537,6 +539,10 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
         **{f"pax_delay_{k}": v for k, v in pax_delay.items()},
         **{f"final_delay_{k}": v for k, v in final_delay.items()},
         **{f"punct_{k}": n_punct[k] / max(1, n_stops[k]) for k in TYPES},
+        # share of passengers arriving < 6 min late (passenger trains only)
+        "pax_punct": sum(pax_ontime[k] for k in ("FV", "NV", "S")) /
+                     max(1e-9, sum(pax_total[k] for k in ("FV", "NV", "S"))),
+        **{f"pax_punct_{k}": pax_ontime[k] / max(1e-9, pax_total[k]) for k in ("FV", "NV", "S")},
         "n_incidents": len(incidents),
         "n_reroutes": n_reroutes,
         "n_priority_holds": n_priority_holds,

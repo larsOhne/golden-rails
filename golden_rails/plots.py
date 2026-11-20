@@ -48,14 +48,14 @@ def ranking(df: pd.DataFrame, n=20, path=RES / "kpi_ranking.png", title=None):
     ax.set_yticks(list(y))
     ax.set_yticklabels([f"{nm}  ({km:.0f} km)" for nm, km in zip(top.name, top.route_km)],
                        color=INK, fontsize=8)
-    ax.set_xlabel("Passenger-delay minutes saved per year per €1,000 of annual cost (capex annuity + opex)",
+    ax.set_xlabel("Eingesparte Fahrgast-Verspätungsminuten pro Jahr je 1.000 € Jahreskosten (Annuität + Betrieb)",
                   color=INK2, fontsize=8)
-    ax.set_title(title or "Passenger-delay reduction per euro: top candidates", loc="left", color=INK, fontsize=11)
+    ax.set_title(title or "Fahrgastverspätung je Euro: beste Maßnahmen", loc="left", color=INK, fontsize=11)
     from matplotlib.patches import Patch
     present = set(colors)
-    handles = [h for h in (Patch(color=BLUE, label="New track(s) on corridor (cost model)"),
-                           Patch(color=AQUA, label="ETCS upgrade (constant cost/km)"),
-                           Patch(color=ORANGE, label="Planned project (BVWP / Deutschlandtakt)"))
+    handles = [h for h in (Patch(color=BLUE, label="Neue Gleise im Korridor (Kostenmodell)"),
+                           Patch(color=AQUA, label="ETCS-Ausrüstung (konstante Kosten/km)"),
+                           Patch(color=ORANGE, label="Geplantes Projekt (BVWP / Deutschlandtakt)"))
                if h.get_facecolor() and matplotlib.colors.to_hex(h.get_facecolor()) in present]
     ax.legend(handles=handles,
               frameon=False, fontsize=8, loc="lower right", labelcolor=INK)
@@ -95,10 +95,10 @@ def network_map(df: pd.DataFrame, hot: pd.DataFrame, path=RES / "network_map.png
                     bbox=dict(boxstyle="round,pad=0.2", fc=SURF, ec=INK2, lw=0.6))
     sm = plt.cm.ScalarMappable(cmap=SEQ, norm=plt.Normalize(0, vmax))
     cb = fig.colorbar(sm, ax=ax, shrink=0.4, pad=0.01)
-    cb.set_label("best option: pax-delay-min saved / €1,000", color=INK2, fontsize=8)
+    cb.set_label("beste Maßnahme: Fahrgast-Verspätungsmin. / 1.000 €", color=INK2, fontsize=8)
     cb.outline.set_visible(False)
     cb.ax.tick_params(colors=INK2, labelsize=7)
-    ax.set_title("Best upgrade per corridor (+1/+2 tracks or ETCS)\nline width = current tracks; #n = rank",
+    ax.set_title("Beste Maßnahme je Korridor (+1/+2 Gleise oder ETCS)\nLinienbreite = heutige Gleiszahl; #n = Rang",
                  loc="left", color=INK, fontsize=10)
     ax.set_aspect(1.6)
     fig.tight_layout()
@@ -113,9 +113,9 @@ def main():
     hot = pd.read_csv(RES / "baseline_hotspots.csv")
     build = pd.concat([tracks[tracks.option.isin(["T1", "T2", "T1E"])], df[df.kind == "planned project"]])
     ranking(build, 20, RES / "kpi_ranking_new_track.png",
-            "Building new track: passenger-delay saved per euro")
+            "Neubau von Gleisen: eingesparte Fahrgastverspätung je Euro")
     ranking(pd.concat([df, tracks]).drop_duplicates("id"), 20, RES / "kpi_ranking_all.png",
-            "All options incl. ETCS: passenger-delay saved per euro")
+            "Alle Maßnahmen inkl. ETCS: eingesparte Fahrgastverspätung je Euro")
     network_map(screen, hot)
 
 

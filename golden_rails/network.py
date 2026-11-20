@@ -170,6 +170,23 @@ class Network:
         return added_track_km
 
 
+def place_name(nodes: pd.DataFrame, nid: str) -> str:
+    """Short display name of a node, e.g. 'Hannover Hbf' -> 'Hannover'."""
+    n = nodes.loc[nid, "name"]
+    for suffix in (" Hbf", " Bad Bf", "-Wilhelmshöhe", " Rbf"):
+        n = n.replace(suffix, "")
+    return n
+
+
+def segment_name(net: "Network", sid: str) -> str:
+    """Full place names of a corridor, e.g. 'HU-GEL' -> 'Hanau–Gelnhausen'."""
+    s = net.segments[sid]
+    name = f"{place_name(net.nodes, s.a)}–{place_name(net.nodes, s.b)}"
+    if "NBS" in s.note:
+        name += " (NBS)"
+    return name
+
+
 def load_network(data_dir: Path = DATA) -> Network:
     nodes = pd.read_csv(data_dir / "nodes.csv").set_index("id")
     segs = {}

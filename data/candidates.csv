@@ -1,16 +1,16 @@
 id,name,changes,capex_meur,source_note
-C01,NBS Hannover-Bielefeld,new:H:BI:95:2:300:FV,9000,Deutschlandtakt 31-min target; cost range widely reported 6-10 bn
-C02,NBS Frankfurt-Mannheim,new:F:MA:85:2:300:FV,5500,BVWP VB; incl. Frankfurt Stadion and Mannheim approaches
-C03,ABS/NBS Hanau-Gelnhausen-Fulda,tracks:HU-GEL:4;new:GEL:FD:45:2:280:FV|GV,4300,BVWP VB; 4-tracking Hanau-Gelnhausen + NBS Gelnhausen-Fulda
-C04,NBS Fulda-Gerstungen (Eisenach),new:FD:EIS:60:2:280:FV|GV,4000,BVWP VB
-C05,NBS Nürnberg-Würzburg,new:N:WÜ:80:2:300:FV,5000,Deutschlandtakt
-C06,NBS Hamburg-Hannover (A7 corridor),new:MSH:H:125:2:300:FV,9000,Deutschlandtakt; variant along A7
-C07,3rd track Lüneburg-Uelzen-Celle (Alpha-E),tracks:LG-UE:3;tracks:UE-CE:3,2000,Alpha-E / Optimiertes Alpha-E core
-C08,Rheintalbahn Offenburg-Freiburg 4-track,tracks:OG-FR:4,4500,ABS/NBS Karlsruhe-Basel remaining sections incl. Offenburg tunnel
-C09,Emmerich-Oberhausen 3rd track,tracks:OB-EMM:3,2500,Betuwe link (under construction)
-C10,RRX 4-tracking Duisburg-Dortmund,tracks:E-DU:4;tracks:BO-E:4;tracks:DO-BO:4,3000,Rhein-Ruhr-Express infrastructure
-C11,NBS Ulm-Augsburg,new:U:A:80:2:300:FV,5500,BVWP VB
-C12,NBS Mannheim-Karlsruhe,new:MA:KA:70:2:250:FV|GV,4000,BVWP VB
-C13,2nd track Rotenburg-Verden,tracks:ROT-VER:2,500,Amerikalinie upgrade
-C14,2nd track Münster-Lünen,tracks:MS-DO:2,900,BVWP VB
-C15,Nürnberg-Bamberg 4-track completion,tracks:N-BA:4,2000,VDE 8.1 remaining sections
+C01,NBS Hannover–Bielefeld,new:H:BI:95:2:300:FV,9000,Deutschlandtakt 31-min target; cost range widely reported 6-10 bn
+C02,NBS Frankfurt–Mannheim,new:F:MA:85:2:300:FV,5500,BVWP VB; incl. Frankfurt Stadion and Mannheim approaches
+C03,ABS/NBS Hanau–Gelnhausen–Fulda,tracks:HU-GEL:4;new:GEL:FD:45:2:280:FV|GV,4300,BVWP VB; 4-tracking Hanau-Gelnhausen + NBS Gelnhausen-Fulda
+C04,NBS Fulda–Gerstungen (Eisenach),new:FD:EIS:60:2:280:FV|GV,4000,BVWP VB
+C05,NBS Nürnberg–Würzburg,new:N:WÜ:80:2:300:FV,5000,Deutschlandtakt
+C06,NBS Hamburg–Hannover (A7-Trasse),new:MSH:H:125:2:300:FV,9000,Deutschlandtakt; variant along A7
+C07,3. Gleis Lüneburg–Uelzen–Celle (Alpha-E),tracks:LG-UE:3;tracks:UE-CE:3,2000,Alpha-E / Optimiertes Alpha-E core
+C08,Rheintalbahn Offenburg–Freiburg viergleisig,tracks:OG-FR:4,4500,ABS/NBS Karlsruhe-Basel remaining sections incl. Offenburg tunnel
+C09,3. Gleis Emmerich–Oberhausen,tracks:OB-EMM:3,2500,Betuwe link (under construction)
+C10,RRX viergleisig Duisburg–Dortmund,tracks:E-DU:4;tracks:BO-E:4;tracks:DO-BO:4,3000,Rhein-Ruhr-Express infrastructure
+C11,NBS Ulm–Augsburg,new:U:A:80:2:300:FV,5500,BVWP VB
+C12,NBS Mannheim–Karlsruhe,new:MA:KA:70:2:250:FV|GV,4000,BVWP VB
+C13,2. Gleis Rotenburg–Verden,tracks:ROT-VER:2,500,Amerikalinie upgrade
+C14,2. Gleis Münster–Lünen,tracks:MS-DO:2,900,BVWP VB
+C15,Nürnberg–Bamberg viergleisig (Restabschnitte),tracks:N-BA:4,2000,VDE 8.1 remaining sections
