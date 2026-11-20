@@ -121,9 +121,6 @@ def main():
     convergence()
 
 
-if __name__ == "__main__":
-    main()
-
 
 def convergence(path=RES / "convergence.png", ids=None):
     """Running KPI estimate and 95 % band vs. number of Monte-Carlo days."""
@@ -154,3 +151,7 @@ def convergence(path=RES / "convergence.png", ids=None):
     fig.tight_layout()
     fig.savefig(path, facecolor=SURF)
     plt.close(fig)
+
+
+if __name__ == "__main__":
+    main()

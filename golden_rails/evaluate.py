@@ -240,7 +240,8 @@ def refine(option_codes, top=20, seeds=200, procs=4, dm=None, tag="", out_dir=RO
             d = np.array([a["pax_delay_min"] - b["pax_delay_min"] for a, b in zip(res[e]["runs"], res[te]["runs"])])
             c1 = rc.set_index("id").loc[te, "capex_meur"] - rc.set_index("id").loc[e, "capex_meur"]
             cost = c1 * 1e6 * af + res[te]["added_track_km"] * OPEX_EUR_PER_TRACK_KM
-            inc.append({"segment": seg, "incremental_pax_min_per_year_m": d.mean() * DAY_FACTOR / 1e6,
+            inc.append({"segment": seg, "corridor": segment_name(load_network(), seg),
+                        "incremental_pax_min_per_year_m": d.mean() * DAY_FACTOR / 1e6,
                         "incremental_kpi_paxmin_per_keur": d.mean() * DAY_FACTOR / cost * 1000,
                         "se_per_day": d.std(ddof=1) / math.sqrt(len(d))})
     out.to_csv(out_dir / f"candidates{tag}.csv", index=False)
