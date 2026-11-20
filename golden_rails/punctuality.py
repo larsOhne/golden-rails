@@ -126,7 +126,7 @@ def _run(args):
     return out
 
 
-def run(seeds=30, procs=4, out_dir=RES):
+def run(seeds=100, procs=4, out_dir=RES):
     screen = pd.read_csv(out_dir / "screening.csv")
     packages = build_packages(screen)
     s = list(range(2000, 2000 + seeds))
@@ -198,7 +198,7 @@ def plot(out_dir=RES):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--seeds", type=int, default=30)
+    ap.add_argument("--seeds", type=int, default=100)
     ap.add_argument("--procs", type=int, default=4)
     a = ap.parse_args()
     curve, levers = run(a.seeds, a.procs)

@@ -106,3 +106,15 @@ def test_etcs_reduces_delay():
     a = sum(simulate_day(base, bt, dm, s)["pax_delay_min"] for s in range(4))
     b = sum(simulate_day(net, trains, dm, s)["pax_delay_min"] for s in range(4))
     assert b < a
+
+
+def test_trace_does_not_change_results():
+    net = load_network()
+    trains = build_trains(net)
+    plan_timetable(net, trains)
+    dm = DisruptionModel()
+    trace = []
+    a = simulate_day(net, trains, dm, 11)
+    b = simulate_day(net, trains, dm, 11, trace=trace)
+    assert a["pax_delay_min"] == b["pax_delay_min"]
+    assert len(trace) > 10000 and "incidents" in b

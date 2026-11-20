@@ -414,7 +414,9 @@ def _poisson(rng: random.Random, lam: float) -> int:
 
 
 def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: int,
-                 reroute: bool = True, priority: bool = True) -> dict:
+                 reroute: bool = True, priority: bool = True, trace: list | None = None) -> dict:
+    """Simulate one operating day. ``trace`` (optional list) receives one tuple per
+    block occupation: (train_idx, entry, exit, seg_id, block, dir, delay_vs_plan)."""
     infra = Infra(net)
     incidents = sample_incidents(net, dm, seed)
     for kind, sid, bi, k, t0, t1 in incidents:
@@ -501,6 +503,9 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
                 continue
 
         ch.book(te, ract, d)
+        if trace is not None:
+            pe_i = plan_entry[i]
+            trace.append((idx, te, te + ract, sid, bi, d, te - pe_i if pe_i > -math.inf else math.nan))
         wait = te - ready
         if wait > 0:
             seg_wait[sid] = seg_wait.get(sid, 0.0) + wait
@@ -547,6 +552,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
         "n_reroutes": n_reroutes,
         "n_priority_holds": n_priority_holds,
         "seg_wait": seg_wait,
+        **({"incidents": incidents} if trace is not None else {}),
     }
 
 

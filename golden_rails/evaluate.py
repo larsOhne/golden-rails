@@ -153,7 +153,18 @@ def summarise(cands: pd.DataFrame, res: dict, base: dict) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("kpi_paxmin_per_keur", ascending=False)
 
 
-def evaluate(screen_seeds=16, refine_seeds=60, refine_top=30, procs=4,
+def per_seed(res: dict, ids) -> pd.DataFrame:
+    """Paired per-day savings (passenger-delay minutes) for convergence checks."""
+    base = res["BASE"]["runs"]
+    rows = []
+    for i in ids:
+        for k, (b, x) in enumerate(zip(base, res[i]["runs"])):
+            rows.append({"id": i, "day": k, "pax_min_saved": b["pax_delay_min"] - x["pax_delay_min"],
+                         "train_min_saved": b["delay_min"] - x["delay_min"]})
+    return pd.DataFrame(rows)
+
+
+def evaluate(screen_seeds=32, refine_seeds=200, refine_top=30, procs=4,
              dm: DisruptionModel | None = None, out_dir=ROOT / "results", tag="",
              include_generic=True) -> pd.DataFrame:
     dm = dm or DisruptionModel()
@@ -188,6 +199,7 @@ def evaluate(screen_seeds=16, refine_seeds=60, refine_top=30, procs=4,
     out_dir.mkdir(exist_ok=True, parents=True)
     screen.to_csv(out_dir / f"screening{tag}.csv", index=False)
     refined.to_csv(out_dir / f"candidates{tag}.csv", index=False)
+    per_seed(res2, rc.id).to_csv(out_dir / f"per_day{tag}.csv", index=False)
     base = res2["BASE"]["runs"]
     summary = {
         "screen_seeds": screen_seeds, "refine_seeds": refine_seeds,
@@ -205,7 +217,7 @@ def evaluate(screen_seeds=16, refine_seeds=60, refine_top=30, procs=4,
     return refined
 
 
-def refine(option_codes, top=20, seeds=60, procs=4, dm=None, tag="", out_dir=ROOT / "results",
+def refine(option_codes, top=20, seeds=200, procs=4, dm=None, tag="", out_dir=ROOT / "results",
            extra_ids=()):
     """Refine the best screened options of the given types (e.g. track building only)."""
     dm = dm or DisruptionModel()
@@ -232,6 +244,7 @@ def refine(option_codes, top=20, seeds=60, procs=4, dm=None, tag="", out_dir=ROO
                         "incremental_kpi_paxmin_per_keur": d.mean() * DAY_FACTOR / cost * 1000,
                         "se_per_day": d.std(ddof=1) / math.sqrt(len(d))})
     out.to_csv(out_dir / f"candidates{tag}.csv", index=False)
+    per_seed(res, rc.id).to_csv(out_dir / f"per_day{tag}.csv", index=False)
     if inc:
         pd.DataFrame(inc).sort_values("incremental_kpi_paxmin_per_keur", ascending=False).to_csv(
             out_dir / f"track_after_etcs{tag}.csv", index=False)
@@ -240,8 +253,8 @@ def refine(option_codes, top=20, seeds=60, procs=4, dm=None, tag="", out_dir=ROO
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--screen-seeds", type=int, default=16)
-    ap.add_argument("--seeds", type=int, default=60, help="Monte-Carlo days in refinement")
+    ap.add_argument("--screen-seeds", type=int, default=32)
+    ap.add_argument("--seeds", type=int, default=200, help="Monte-Carlo days in refinement")
     ap.add_argument("--top", type=int, default=30)
     ap.add_argument("--procs", type=int, default=4)
     ap.add_argument("--no-generic", action="store_true")

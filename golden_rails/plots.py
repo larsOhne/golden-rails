@@ -7,6 +7,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -117,7 +118,39 @@ def main():
     ranking(pd.concat([df, tracks]).drop_duplicates("id"), 20, RES / "kpi_ranking_all.png",
             "Alle Maßnahmen inkl. ETCS: eingesparte Fahrgastverspätung je Euro")
     network_map(screen, hot)
+    convergence()
 
 
 if __name__ == "__main__":
     main()
+
+
+def convergence(path=RES / "convergence.png", ids=None):
+    """Running KPI estimate and 95 % band vs. number of Monte-Carlo days."""
+    from .sim import DAY_FACTOR
+    per = pd.read_csv(RES / "per_day_tracks.csv")
+    cand = pd.read_csv(RES / "candidates_tracks.csv").set_index("id")
+    if ids is None:
+        ids = list(cand[cand.option.isin(["T1"])].sort_values("kpi_paxmin_per_keur", ascending=False).index[:4])
+    colors = ["#2a78d6", "#eb6834", "#1baf7a", "#e87ba4"]
+    fig, ax = plt.subplots(figsize=(9, 4.8), dpi=150, facecolor=SURF)
+    _style(ax)
+    ax.grid(axis="y", color=GRID, lw=0.8)
+    for c, i in zip(colors, ids):
+        x = per[per.id == i].sort_values("day").pax_min_saved.to_numpy()
+        n = np.arange(1, len(x) + 1)
+        k = DAY_FACTOR / (cand.loc[i, "annual_cost_meur"] * 1e6) * 1000
+        mean = np.cumsum(x) / n
+        sd = np.array([x[:j].std(ddof=1) if j > 1 else np.nan for j in n])
+        half = 1.96 * sd / np.sqrt(n)
+        m = n >= 5
+        ax.fill_between(n[m], (mean - half)[m] * k, (mean + half)[m] * k, color=c, alpha=0.15, lw=0)
+        ax.plot(n[m], mean[m] * k, color=c, lw=2, label=cand.loc[i, "name"])
+    ax.set_xlabel("Anzahl simulierter Tage (Monte-Carlo-Stichproben)", color=INK2, fontsize=8)
+    ax.set_ylabel("Fahrgast-Verspätungsmin. / 1.000 €", color=INK2, fontsize=8)
+    ax.set_title("Konvergenz: Schätzwert und 95-%-Band der besten Gleis-Maßnahmen", loc="left",
+                 color=INK, fontsize=11)
+    ax.legend(frameon=False, fontsize=8, labelcolor=INK)
+    fig.tight_layout()
+    fig.savefig(path, facecolor=SURF)
+    plt.close(fig)
