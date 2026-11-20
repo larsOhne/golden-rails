@@ -1,28 +1,28 @@
-id,name,stops,headway_min,first_dep,last_dep,vmax
-ICE20,Hamburg-Frankfurt-Basel,HH H GÖ KS FD F MA KA OG FR BAS,120,6:00,20:00,300
-ICE22,Hamburg-Frankfurt-Stuttgart,HH H GÖ KS FD F MA S,120,5:00,21:00,300
-ICE25,Hamburg-Würzburg-München,HH H GÖ KS FD WÜ N IN M,60,5:00,21:00,300
-ICE12,Berlin-Braunschweig-Frankfurt-Basel,B SPA WOB BS HI GÖ KS FD F MA KA FR BAS,120,6:00,18:00,250
-ICE10,Berlin-Hannover-Ruhr-Köln,B SPA WOB H BI HAM DO E DU D K,60,5:00,21:00,250
-IC77,Amsterdam-Hannover-Berlin,OS MI H WOB SPA B,120,6:00,20:00,200
-ICE15,Berlin-Halle-Erfurt-Frankfurt,B WB HAL EF EIS FD F,60,5:00,21:00,300
-ICE29,Berlin-Erfurt-Nürnberg-München,B WB L HAL EF BA N IN M,60,5:00,21:00,300
-ICE41,Essen-Köln-Frankfurt-Nürnberg-München,E DU D K SIE FFLF F HU WÜ N IN M,120,6:00,20:00,300
-ICE42,Dortmund-Köln-Frankfurt Flughafen-Stuttgart-München,DO E DU D K SIE FFLF MA S U A M,120,5:00,19:00,300
-ICE43,Köln-Frankfurt Flughafen-Basel,K SIE FFLF MA KA OG FR BAS,120,6:00,18:00,300
-ICE49,Düsseldorf-Köln-Frankfurt,D K SIE MTX FFLF F,60,5:00,22:00,300
-ICE78,Amsterdam-Köln-Frankfurt,EMM OB DU D K SIE FFLF F,120,6:00,18:00,300
-IC30,Hamburg-Bremen-Ruhr-Köln-Koblenz-Stuttgart,HH HAR HB OS MS DO E DU D K BN KO MZ MA S,120,6:00,18:00,200
-IC31,Hamburg-Bremen-Ruhr-Köln-Koblenz-Frankfurt,HH HAR HB OS MS HAM DO WUP K BN KO MZ FFLF F,120,5:00,19:00,200
-IC32,Dortmund-Köln-Koblenz-Mannheim-München,DO WUP K BN KO MZ MA S U A M,120,7:00,17:00,200
-ICE11,Berlin-Erfurt-Frankfurt-Stuttgart-München,B WB L HAL EF EIS FD F MA S U A M,120,6:00,16:00,300
-ICE18,Hamburg-Berlin,HH LUD SPA B,60,5:00,21:00,230
-EC27,Hamburg-Berlin-Dresden,HH LUD SPA B DD,120,6:00,18:00,200
-IC56,Leipzig-Magdeburg-Hannover-Bremen,L HAL MD BS H VER HB,120,6:00,20:00,160
-IC50,Frankfurt-Erfurt-Leipzig-Dresden,F FD EIS EF L DD,120,6:00,20:00,200
-ICE91,Frankfurt-Würzburg-Regensburg-Passau,F HU WÜ N R PA,120,6:00,18:00,250
-ICE79,Köln-Aachen-Brussels,K AC,120,6:00,20:00,250
-ICE9,Paris-Saarbrücken-Frankfurt,SB KL MA F,240,7:00,19:00,250
-TGV83,Paris-Karlsruhe-Stuttgart-München,KA S U A M,240,7:00,19:00,250
-IC26,Hamburg-Hannover-Kassel-Frankfurt-Karlsruhe,HH H HI GÖ KS FD F DA HD KA,120,7:00,17:00,200
-IC60,Hamburg-Lübeck,HH HL,120,7:00,19:00,160
+id,name,stops,headway_min,first_dep,last_dep,vmax,pax
+ICE20,Hamburg-Frankfurt-Basel,HH H GÖ KS FD F MA KA OG FR BAS,120,6:00,20:00,300,340
+ICE22,Hamburg-Frankfurt-Stuttgart,HH H GÖ KS FD F MA S,120,5:00,21:00,300,340
+ICE25,Hamburg-Würzburg-München,HH H GÖ KS FD WÜ N IN M,60,5:00,21:00,300,350
+ICE12,Berlin-Braunschweig-Frankfurt-Basel,B SPA WOB BS HI GÖ KS FD F MA KA FR BAS,120,6:00,18:00,250,300
+ICE10,Berlin-Hannover-Ruhr-Köln,B SPA WOB H BI HAM DO E DU D K,60,5:00,21:00,250,380
+IC77,Amsterdam-Hannover-Berlin,OS MI H WOB SPA B,120,6:00,20:00,200,260
+ICE15,Berlin-Halle-Erfurt-Frankfurt,B WB HAL EF EIS FD F,60,5:00,21:00,300,330
+ICE29,Berlin-Erfurt-Nürnberg-München,B WB L HAL EF BA N IN M,60,5:00,21:00,300,360
+ICE41,Essen-Köln-Frankfurt-Nürnberg-München,E DU D K SIE FFLF F HU WÜ N IN M,120,6:00,20:00,300,320
+ICE42,Dortmund-Köln-Frankfurt Flughafen-Stuttgart-München,DO E DU D K SIE FFLF MA S U A M,120,5:00,19:00,300,320
+ICE43,Köln-Frankfurt Flughafen-Basel,K SIE FFLF MA KA OG FR BAS,120,6:00,18:00,300,300
+ICE49,Düsseldorf-Köln-Frankfurt,D K SIE MTX FFLF F,60,5:00,22:00,300,330
+ICE78,Amsterdam-Köln-Frankfurt,EMM OB DU D K SIE FFLF F,120,6:00,18:00,300,280
+IC30,Hamburg-Bremen-Ruhr-Köln-Koblenz-Stuttgart,HH HAR HB OS MS DO E DU D K BN KO MZ MA S,120,6:00,18:00,200,260
+IC31,Hamburg-Bremen-Ruhr-Köln-Koblenz-Frankfurt,HH HAR HB OS MS HAM DO WUP K BN KO MZ FFLF F,120,5:00,19:00,200,260
+IC32,Dortmund-Köln-Koblenz-Mannheim-München,DO WUP K BN KO MZ MA S U A M,120,7:00,17:00,200,240
+ICE11,Berlin-Erfurt-Frankfurt-Stuttgart-München,B WB L HAL EF EIS FD F MA S U A M,120,6:00,16:00,300,300
+ICE18,Hamburg-Berlin,HH LUD SPA B,60,5:00,21:00,230,420
+EC27,Hamburg-Berlin-Dresden,HH LUD SPA B DD,120,6:00,18:00,200,240
+IC56,Leipzig-Magdeburg-Hannover-Bremen,L HAL MD BS H VER HB,120,6:00,20:00,160,200
+IC50,Frankfurt-Erfurt-Leipzig-Dresden,F FD EIS EF L DD,120,6:00,20:00,200,220
+ICE91,Frankfurt-Würzburg-Regensburg-Passau,F HU WÜ N R PA,120,6:00,18:00,250,250
+ICE79,Köln-Aachen-Brussels,K AC,120,6:00,20:00,250,200
+ICE9,Paris-Saarbrücken-Frankfurt,SB KL MA F,240,7:00,19:00,250,220
+TGV83,Paris-Karlsruhe-Stuttgart-München,KA S U A M,240,7:00,19:00,250,220
+IC26,Hamburg-Hannover-Kassel-Frankfurt-Karlsruhe,HH H HI GÖ KS FD F DA HD KA,120,7:00,17:00,200,240
+IC60,Hamburg-Lübeck,HH HL,120,7:00,19:00,160,160

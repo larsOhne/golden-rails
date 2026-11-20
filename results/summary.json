@@ -1,18 +1,21 @@
 {
-  "n_seeds": 60,
+  "screen_seeds": 16,
+  "refine_seeds": 60,
   "disruption_model": {
     "p_origin": {
-      "FV": 0.3,
+      "FV": 0.4,
       "NV": 0.25,
+      "S": 0.2,
       "GV": 0.5
     },
     "mean_origin": {
-      "FV": 4.5,
-      "NV": 5.5,
+      "FV": 7.5,
+      "NV": 4.0,
+      "S": 3.0,
       "GV": 25.0
     },
-    "p_dwell": 0.2,
-    "mean_dwell": 1.0,
+    "p_dwell": 0.25,
+    "mean_dwell": 1.5,
     "run_sd": 0.03,
     "rate_track_fault": 0.001,
     "rate_full_closure": 0.00015,
@@ -21,12 +24,14 @@
     "sigma_duration": 0.8,
     "scale": 1.0
   },
-  "baseline_delay_min_per_day": 73710.0179827322,
-  "baseline_delay_min_per_year_m": 24.324305934301627,
+  "baseline_pax_delay_min_per_day": 3283313.6518369694,
+  "baseline_train_delay_min_per_day": 48846.30965884752,
+  "baseline_avg_delay_per_pax_min": 2.5647481598826465,
   "baseline_punct": {
-    "FV": 0.6162241887905605,
-    "NV": 0.9011186674551548,
-    "GV": 0.8628600823045267
+    "FV": 0.6180355825958703,
+    "NV": 0.9044057724957554,
+    "S": 0.9196862348178139,
+    "GV": 0.7439814814814816
   },
   "annuity_factor": 0.02671694065778316
 }

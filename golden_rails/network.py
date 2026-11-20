@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import heapq
 import math
 from dataclasses import dataclass, field
@@ -14,24 +15,33 @@ DATA = Path(__file__).resolve().parent.parent / "data"
 # Train-type speed and running-time efficiency.
 # eff < 1 accounts for acceleration/braking and, for NV, intermediate stops.
 TRAIN_TYPES = {
-    "FV": {"vmax": 300, "eff": 0.90},
-    "NV": {"vmax": 160, "eff": 0.70},
-    "GV": {"vmax": 100, "eff": 0.85},
+    "FV": {"vmax": 300, "eff": 0.90, "label": "ICE/IC"},
+    "NV": {"vmax": 160, "eff": 0.70, "label": "RE/RB"},
+    "S": {"vmax": 120, "eff": 0.60, "label": "S-Bahn/tram-train"},
+    "GV": {"vmax": 100, "eff": 0.85, "label": "cargo"},
 }
+
+HEADWAY_CONVENTIONAL = 3.0   # min, PZB/LZB block signalling
+HEADWAY_ETCS = float(os.environ.get("GR_HEADWAY_ETCS", 2.0))  # min, ETCS L2 with short blocks
 
 MAX_BLOCK_KM_SINGLE = 10.0   # passing-loop spacing on single track
 MAX_BLOCK_KM_MULTI = 20.0    # crossover spacing on multi-track lines
 
 
 def channel_layout(tracks: int) -> list[int]:
-    """Direction per track channel: +1 forward, -1 backward, 0 bidirectional."""
+    """Corridor width -> track channels: +1 forward, -1 backward, 0 bidirectional.
+
+    n tracks give n//2 tracks per direction; an odd track is bidirectional
+    (overtaking / counter-peak track). 1 -> [0], 2 -> [+,-], 3 -> [+,-,0],
+    4 -> [+,+,-,-], 5 -> [+,+,-,-,0], 6 -> [+,+,+,-,-,-] ...
+    """
     if tracks <= 1:
         return [0]
-    if tracks == 2:
-        return [1, -1]
-    if tracks == 3:
-        return [1, -1, 0]
-    return [1, 1, -1, -1]
+    k = tracks // 2
+    lay = [1] * k + [-1] * k
+    if tracks % 2:
+        lay.append(0)
+    return lay
 
 
 @dataclass
@@ -44,7 +54,13 @@ class Segment:
     vmax: float
     types: frozenset
     nv_tph: float
-    upgrade_meur_per_km: float
+    s_tph: float = 0.0
+    etcs: bool = False
+    terrain: str = "flat"
+    urban_share: float = 0.0
+    suburban_share: float = 0.0
+    open_share: float = 1.0
+    protected_share: float = 0.0
     note: str = ""
     new: bool = False
     nb: int = 0   # block count, fixed by the *base* track layout (upgrades keep it)
@@ -56,6 +72,10 @@ class Segment:
 
     def n_blocks(self) -> int:
         return self.nb
+
+    @property
+    def headway(self) -> float:
+        return HEADWAY_ETCS if self.etcs else HEADWAY_CONVENTIONAL
 
 
 @dataclass
@@ -131,9 +151,10 @@ class Network:
                 while sid in self.segments:
                     k += 1
                     sid = f"{a}-{b}-NEW{k}"
+                # new infrastructure is built with ETCS (constant cost, in capex)
                 self.segments[sid] = Segment(
                     sid, a, b, float(length), int(tracks), float(vmax),
-                    frozenset(types.split("|")), 0.0, 0.0, "candidate", new=True)
+                    frozenset(types.split("|")), 0.0, etcs=True, note="candidate", new=True)
                 added_track_km += float(length) * int(tracks)
             elif parts[0] == "tracks":
                 _, sid, n = parts
@@ -141,6 +162,8 @@ class Network:
                 n = int(n)
                 added_track_km += seg.length * max(0, n - seg.tracks)
                 seg.tracks = n
+            elif parts[0] == "etcs":
+                self.segments[parts[1]].etcs = True
             else:
                 raise ValueError(op)
         self.rebuild()
@@ -151,11 +174,15 @@ def load_network(data_dir: Path = DATA) -> Network:
     nodes = pd.read_csv(data_dir / "nodes.csv").set_index("id")
     segs = {}
     df = pd.read_csv(data_dir / "segments.csv").fillna("")
-    for r in df.itertuples():
-        for n in (r._2, r.to):
+    for _, r in df.iterrows():
+        for n in (r["from"], r["to"]):
             if n not in nodes.index:
-                raise ValueError(f"segment {r.id}: unknown node {n}")
-        segs[r.id] = Segment(r.id, r._2, r.to, float(r.length_km), int(r.tracks),
-                             float(r.vmax), frozenset(r.types.split("|")),
-                             float(r.nv_tph), float(r.upgrade_meur_per_km), r.note)
+                raise ValueError(f"segment {r['id']}: unknown node {n}")
+        segs[r["id"]] = Segment(
+            r["id"], r["from"], r["to"], float(r["length_km"]), int(r["tracks"]),
+            float(r["vmax"]), frozenset(r["types"].split("|")), float(r["nv_tph"]),
+            s_tph=float(r["s_tph"]), etcs=bool(int(r["etcs"])), terrain=r["terrain"],
+            urban_share=float(r["urban_share"]), suburban_share=float(r["suburban_share"]),
+            open_share=float(r["open_share"]), protected_share=float(r["protected_share"]),
+            note=r["note"])
     return Network(nodes, segs)

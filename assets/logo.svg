@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 720" width="512" height="720" role="img" aria-labelledby="t d">
+  <title id="t">golden rails</title>
+  <desc id="d">A golden Art Deco award statuette holding a rail like a sword, standing on a spoked train wheel and a length of track.</desc>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7a5410"/>
+      <stop offset="0.22" stop-color="#c8921e"/>
+      <stop offset="0.42" stop-color="#ffe9a3"/>
+      <stop offset="0.55" stop-color="#f3c447"/>
+      <stop offset="0.80" stop-color="#b47b12"/>
+      <stop offset="1" stop-color="#5e400b"/>
+    </linearGradient>
+    <linearGradient id="goldV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe9a3"/>
+      <stop offset="0.5" stop-color="#e2ab2f"/>
+      <stop offset="1" stop-color="#8a5f12"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f1e8"/>
+      <stop offset="0.35" stop-color="#b9b4a6"/>
+      <stop offset="1" stop-color="#5b574d"/>
+    </linearGradient>
+    <linearGradient id="plinth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2a33"/>
+      <stop offset="1" stop-color="#121217"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.38" r="0.6">
+      <stop offset="0" stop-color="#2b4a73"/>
+      <stop offset="1" stop-color="#0c1626"/>
+    </radialGradient>
+    <clipPath id="badge"><rect x="0" y="0" width="512" height="720" rx="56"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#badge)">
+    <rect width="512" height="720" fill="url(#glow)"/>
+    <!-- art-deco sunburst -->
+    <g stroke="#f3c447" stroke-opacity="0.10" stroke-width="10">
+      <line x1="256" y1="300" x2="256" y2="-60"/>
+      <line x1="256" y1="300" x2="90" y2="-40"/>
+      <line x1="256" y1="300" x2="422" y2="-40"/>
+      <line x1="256" y1="300" x2="-40" y2="60"/>
+      <line x1="256" y1="300" x2="552" y2="60"/>
+      <line x1="256" y1="300" x2="-60" y2="230"/>
+      <line x1="256" y1="300" x2="572" y2="230"/>
+    </g>
+
+    <!-- converging track in perspective behind the statue -->
+    <g opacity="0.55">
+      <path d="M196 470 L60 720 M316 470 L452 720" stroke="url(#steel)" stroke-width="7" fill="none"/>
+      <g fill="#6b5a3a">
+        <rect x="170" y="520" width="172" height="7"/>
+        <rect x="140" y="575" width="232" height="9"/>
+        <rect x="103" y="640" width="306" height="11"/>
+      </g>
+    </g>
+
+    <!-- statuette -->
+    <g>
+      <!-- body silhouette: shoulders, torso, legs -->
+      <path fill="url(#gold)" d="
+        M 256 146
+        C 232 146 214 152 206 166
+        C 200 178 204 206 214 226
+        C 220 252 226 290 230 320
+        C 232 360 236 410 240 452
+        L 272 452
+        C 276 410 280 360 282 320
+        C 286 290 292 252 298 226
+        C 308 206 312 178 306 166
+        C 298 152 280 146 256 146 Z"/>
+      <!-- leg split -->
+      <path d="M256 330 L256 452" stroke="#6b4a0e" stroke-width="2" opacity="0.7"/>
+      <!-- neck + head -->
+      <rect x="248" y="130" width="16" height="22" rx="6" fill="url(#gold)"/>
+      <ellipse cx="256" cy="110" rx="21" ry="26" fill="url(#gold)"/>
+      <!-- the rail, held like a sword (rail profile as the hilt) -->
+      <g>
+        <rect x="251" y="176" width="10" height="268" fill="url(#steel)"/>
+        <rect x="243" y="440" width="26" height="8" rx="2" fill="url(#steel)"/>
+        <path fill="url(#steel)" d="M241 152 h30 a4 4 0 0 1 4 4 v6 a4 4 0 0 1 -4 4 h-9 v12 h-12 v-12 h-9 a4 4 0 0 1 -4 -4 v-6 a4 4 0 0 1 4 -4 z"/>
+      </g>
+      <!-- crossed arms over the rail -->
+      <path fill="url(#goldV)" d="M212 206 C 228 196 270 214 292 232 C 298 238 292 246 284 244 C 262 236 232 222 214 220 C 204 218 204 210 212 206 Z"/>
+      <path fill="url(#gold)" d="M300 206 C 284 196 242 214 220 232 C 214 238 220 246 228 244 C 250 236 280 222 298 220 C 308 218 308 210 300 206 Z"/>
+      <!-- highlight -->
+      <path d="M243 260 C 240 300 242 360 246 440" stroke="#fff6cf" stroke-width="3" stroke-opacity="0.45" fill="none"/>
+    </g>
+
+    <!-- spoked wheel the statue stands on (the "reel") -->
+    <g transform="translate(256 504)">
+      <circle r="54" fill="url(#gold)"/>
+      <circle r="44" fill="#1a1a20"/>
+      <g stroke="#e2ab2f" stroke-width="6" stroke-linecap="round">
+        <line x1="0" y1="-40" x2="0" y2="40"/>
+        <line x1="-40" y1="0" x2="40" y2="0"/>
+        <line x1="-28" y1="-28" x2="28" y2="28"/>
+        <line x1="-28" y1="28" x2="28" y2="-28"/>
+      </g>
+      <circle r="12" fill="url(#gold)"/>
+      <circle r="4" fill="#5e400b"/>
+    </g>
+
+    <!-- rail (side view) the wheel runs on -->
+    <g>
+      <rect x="132" y="558" width="248" height="12" rx="2" fill="url(#steel)"/>
+      <rect x="150" y="570" width="212" height="8" fill="#8f8a7c"/>
+      <rect x="138" y="578" width="236" height="6" fill="url(#steel)"/>
+    </g>
+
+    <!-- plinth -->
+    <path d="M150 584 H362 L384 640 H128 Z" fill="url(#plinth)"/>
+    <path d="M128 640 H384" stroke="url(#gold)" stroke-width="3"/>
+    <path d="M150 584 H362" stroke="url(#gold)" stroke-width="2"/>
+
+    <!-- wordmark -->
+    <text x="256" y="688" text-anchor="middle"
+          font-family="'Josefin Sans','Futura','Century Gothic','Avenir Next',sans-serif"
+          font-size="40" font-weight="700" letter-spacing="7" fill="url(#gold)">GOLDEN RAILS</text>
+  </g>
+</svg>
