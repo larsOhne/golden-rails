@@ -3,9 +3,9 @@
   "refine_seeds": 200,
   "disruption_model": {
     "p_origin": {
-      "FV": 0.4,
-      "NV": 0.25,
-      "S": 0.2,
+      "FV": 0.6645631067961165,
+      "NV": 0.5572873658133773,
+      "S": 0.6597357611149902,
       "GV": 0.5
     },
     "mean_origin": {
@@ -14,8 +14,16 @@
       "S": 3.0,
       "GV": 25.0
     },
-    "p_dwell": 0.25,
-    "mean_dwell": 1.5,
+    "p_dwell": {
+      "FV": 0.3,
+      "NV": 0.17,
+      "S": 0.08
+    },
+    "mean_dwell": {
+      "FV": 3.0,
+      "NV": 1.1,
+      "S": 0.8
+    },
     "run_sd": 0.03,
     "rate_track_fault": 0.001,
     "rate_full_closure": 0.00015,
@@ -24,14 +32,14 @@
     "sigma_duration": 0.8,
     "scale": 1.0
   },
-  "baseline_pax_delay_min_per_day": 3274346.8997668023,
-  "baseline_train_delay_min_per_day": 48829.71836103315,
-  "baseline_avg_delay_per_pax_min": 2.55774381509237,
+  "baseline_pax_delay_min_per_day": 7311585.702693697,
+  "baseline_train_delay_min_per_day": 99195.74679576844,
+  "baseline_avg_delay_per_pax_min": 7.6504707241565475,
   "baseline_punct": {
-    "FV": 0.6194358407079646,
-    "NV": 0.9043251273344651,
-    "S": 0.9199797570850202,
-    "GV": 0.7450617283950618
+    "FV": 0.49151468860164504,
+    "NV": 0.7440538877952756,
+    "S": 0.7964592592592592,
+    "GV": 0.7148688271604939
   },
   "annuity_factor": 0.02671694065778316
 }
