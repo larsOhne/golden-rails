@@ -1,9 +1,9 @@
 id,name,lat,lon,major
 HH,Hamburg Hbf,53.553,10.007,1
 HAR,Hamburg-Harburg,53.456,9.991,0
-MSH,Maschen Rbf,53.398,10.050,0
-LG,Lüneburg,53.250,10.420,0
-UE,Uelzen,52.965,10.560,0
+MSH,Maschen Rbf,53.398,10.05,0
+LG,Lüneburg,53.25,10.42,0
+UE,Uelzen,52.965,10.56,0
 CE,Celle,52.621,10.062,0
 LEH,Lehrte,52.374,9.977,0
 H,Hannover Hbf,52.377,9.742,1
@@ -16,61 +16,62 @@ HAM,Hamm,51.678,7.808,0
 DO,Dortmund Hbf,51.518,7.459,1
 BO,Bochum,51.479,7.223,0
 E,Essen Hbf,51.451,7.014,1
-DU,Duisburg Hbf,51.430,6.775,1
+DU,Duisburg Hbf,51.43,6.775,1
 OB,Oberhausen,51.475,6.851,0
-EMM,Emmerich,51.830,6.250,0
-D,Düsseldorf Hbf,51.220,6.794,1
+EMM,Emmerich,51.83,6.25,0
+D,Düsseldorf Hbf,51.22,6.794,1
 K,Köln Hbf,50.943,6.959,1
-KDZ,Köln-Deutz/Gremberg,50.920,7.010,0
+KDZ,Köln-Deutz/Gremberg,50.92,7.01,0
 AC,Aachen Hbf,50.768,6.091,0
 BN,Bonn Hbf,50.732,7.097,0
 SIE,Siegburg,50.794,7.203,0
 KO,Koblenz Hbf,50.351,7.589,0
 MTX,Montabaur,50.445,7.825,0
 MZ,Mainz Hbf,49.999,8.259,1
-WI,Wiesbaden/Mainz-Kastel,50.010,8.290,0
-FFLF,Frankfurt Flughafen,50.053,8.570,0
+WI,Wiesbaden/Mainz-Kastel,50.01,8.29,0
+FFLF,Frankfurt Flughafen,50.053,8.57,0
 F,Frankfurt Hbf,50.107,8.663,1
 HU,Hanau,50.121,8.929,0
-GEL,Gelnhausen,50.200,9.190,0
+GEL,Gelnhausen,50.2,9.19,0
 FD,Fulda,50.555,9.684,0
-BEB,Bebra,50.971,9.790,0
+BEB,Bebra,50.971,9.79,0
 EIS,Eisenach,50.977,10.333,0
 EF,Erfurt Hbf,50.973,11.039,1
 KS,Kassel-Wilhelmshöhe,51.313,9.447,0
 GÖ,Göttingen,51.536,9.927,0
 HI,Hildesheim,52.161,9.953,0
 BI,Bielefeld Hbf,52.029,8.533,0
-MI,Minden,52.290,8.935,0
+MI,Minden,52.29,8.935,0
 DA,Darmstadt Hbf,49.873,8.629,0
-MA,Mannheim Hbf,49.480,8.469,1
+MA,Mannheim Hbf,49.48,8.469,1
 HD,Heidelberg,49.404,8.676,0
-KA,Karlsruhe Hbf,48.994,8.400,1
+KA,Karlsruhe Hbf,48.994,8.4,1
 OG,Offenburg,48.477,7.946,0
 FR,Freiburg Hbf,47.998,7.842,0
 BAS,Basel Bad Bf,47.567,7.607,0
 S,Stuttgart Hbf,48.784,9.182,1
 U,Ulm Hbf,48.399,9.983,0
 A,Augsburg Hbf,48.365,10.886,0
-M,München Hbf,48.140,11.558,1
+M,München Hbf,48.14,11.558,1
 IN,Ingolstadt,48.744,11.437,0
 N,Nürnberg Hbf,49.446,11.082,1
 WÜ,Würzburg Hbf,49.802,9.936,0
-BA,Bamberg,49.901,10.900,0
-R,Regensburg,49.012,12.100,0
+BA,Bamberg,49.901,10.9,0
+R,Regensburg,49.012,12.1,0
 PA,Passau,48.574,13.451,0
 HAL,Halle (Saale),51.478,11.987,0
 L,Leipzig Hbf,51.345,12.382,1
-DD,Dresden Hbf,51.040,13.732,1
+DD,Dresden Hbf,51.04,13.732,1
 B,Berlin Hbf,52.525,13.369,1
 SPA,Berlin-Spandau,52.535,13.198,0
 SDL,Stendal,52.594,11.855,0
-WOB,Wolfsburg,52.430,10.788,0
-BS,Braunschweig,52.252,10.540,0
-MD,Magdeburg,52.130,11.627,0
+WOB,Wolfsburg,52.43,10.788,0
+BS,Braunschweig,52.252,10.54,0
+MD,Magdeburg,52.13,11.627,0
 WB,Lutherstadt Wittenberg,51.867,12.648,0
-HL,Lübeck,53.868,10.670,0
+HL,Lübeck,53.868,10.67,0
 SB,Saarbrücken,49.241,6.991,0
 KL,Kaiserslautern,49.437,7.768,0
-WUP,Wuppertal Hbf,51.254,7.150,0
-LUD,Ludwigslust,53.330,11.500,0
+WUP,Wuppertal Hbf,51.254,7.15,0
+LUD,Ludwigslust,53.33,11.5,0
+STA,Frankfurt Stadion,50.068,8.634,0
