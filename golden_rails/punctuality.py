@@ -184,8 +184,11 @@ def plot(out_dir=RES):
     ax.set_xscale("log")
     ax.set_xlabel("Investition (Capex), Mrd. € – logarithmisch; ganz links = heute", color=INK2, fontsize=8)
     ax.set_ylabel("Pünktlichkeit, %", color=INK2, fontsize=8)
-    ax.set_ylim(55, 100)
-    ax.set_title("Nur Infrastruktur: 95 % der Fahrgäste erst ab ~250 Mrd. €, Fernverkehr nie",
+    ax.set_ylim(np.floor(curve.punct_FV.min() * 20) * 5 - 5, 100)
+    reach = curve[curve.pax_punct >= 0.95]
+    head = (f"95 % der Fahrgäste ab ~{reach.capex_meur.iloc[0] / 1000:.0f} Mrd. €" if len(reach)
+            else f"höchstens {curve.pax_punct.max() * 100:.0f} % der Fahrgäste")
+    ax.set_title(f"Nur Infrastruktur: {head}, Fernverkehr höchstens {curve.punct_FV.max() * 100:.0f} %",
                  loc="left", color=INK, fontsize=11)
     from matplotlib.ticker import FixedLocator, FuncFormatter
     ax.xaxis.set_major_locator(FixedLocator([0.1, 0.3, 1, 3, 10, 30, 100, 300]))
