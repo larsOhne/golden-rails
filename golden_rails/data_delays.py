@@ -76,8 +76,11 @@ def node_stations(names: pd.Series) -> dict[str, str]:
 def load(path: Path) -> pd.DataFrame:
     cols = ["station_name", "train_type", "train_number", "train_line_ride_id", "train_line_station_num",
             "arrival_planned_time", "arrival_change_time", "departure_planned_time", "departure_change_time",
-            "arrival_is_canceled", "departure_is_canceled", "is_replacement_train", "is_additional_stop"]
+            "arrival_is_canceled", "departure_is_canceled", "is_replacement_train", "is_additional_stop", "id"]
     df = pq.read_table(path, columns=cols).to_pandas()
+    # one run of a train on one day: ride id + start timestamp (the ride id alone repeats every day)
+    df["trip"] = df["id"].str.rsplit("-", n=1).str[0]
+    df = df.drop(columns=["id"])
     df["cat"] = category(df.train_type)
     df = df[(df.cat != "DROP") & ~df.is_replacement_train & ~df.is_additional_stop]
     arr = (df.arrival_change_time.fillna(df.arrival_planned_time) - df.arrival_planned_time)
@@ -107,7 +110,7 @@ def analyse(path: Path, out=OUT):
     punct.to_csv(out / "punctuality_by_category.csv", index=False)
 
     # 2. origin departure delays (first station of each ride)
-    first = df.loc[df.groupby("train_line_ride_id").train_line_station_num.idxmin()]
+    first = df.loc[df.groupby("trip").train_line_station_num.idxmin()]
     first = first[first.departure_planned_time.notna() & first.dep_delay.notna()]
     rows = []
     for cat, g in first.groupby("cat"):
@@ -135,9 +138,9 @@ def analyse(path: Path, out=OUT):
 
     # 4. delay change between consecutive model nodes within the same ride
     s = df.assign(node=df.station_name.map(inv))
-    s = s[s.node.notna()].sort_values(["train_line_ride_id", "train_line_station_num"])
-    s["next_node"] = s.groupby("train_line_ride_id").node.shift(-1)
-    s["next_arr_delay"] = s.groupby("train_line_ride_id").arr_delay.shift(-1)
+    s = s[s.node.notna()].sort_values(["trip", "train_line_station_num"])
+    s["next_node"] = s.groupby("trip").node.shift(-1)
+    s["next_arr_delay"] = s.groupby("trip").arr_delay.shift(-1)
     legs = s[s.next_node.notna() & (s.next_node != s.node) & s.dep_delay.notna() & s.next_arr_delay.notna()]
     legs = legs.assign(change=legs.next_arr_delay - legs.dep_delay)
     corr = legs.groupby(["node", "next_node", "cat"]).agg(
@@ -145,6 +148,16 @@ def analyse(path: Path, out=OUT):
         p_gain_ge3=("change", lambda x: (x >= 3).mean()),
         mean_dep_delay=("dep_delay", "mean")).reset_index()
     corr.to_csv(out / "delay_change_by_leg.csv", index=False)
+
+    # 5. delay when a train enters the model: departure delay at its first model node
+    entry = s[s.dep_delay.notna()].groupby("trip").head(1)
+    e = entry.assign(d=entry.dep_delay.clip(lower=0))
+    by_node = e.groupby(["node", "cat"]).agg(
+        trains=("d", "size"), p_delayed_ge1=("d", lambda x: (x >= 1).mean()),
+        mean_if_delayed=("d", lambda x: x[x >= 1].mean())).reset_index()
+    by_node.to_csv(out / "entry_delay_by_node.csv", index=False)
+    (e.assign(d=e.d.clip(upper=120).round()).groupby(["cat", "d"]).size().rename("n").reset_index()
+     .to_csv(out / "entry_delay_hist.csv", index=False))
 
     meta = {"source": "piebro/deutsche-bahn-data (DB Timetables API, CC BY 4.0)", "file": path.name,
             "month": month, "rows_used": int(len(df)), "node_station_map": mapping}
@@ -154,7 +167,8 @@ def analyse(path: Path, out=OUT):
 
 def main():
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data/raw/delays/data-2026-10.parquet"
-    punct, origin, per_node, corr = analyse(path)
+    out = Path(sys.argv[2]) if len(sys.argv) > 2 else OUT
+    punct, origin, per_node, corr = analyse(path, out)
     pd.set_option("display.width", 200)
     print(punct.round(3).to_string(index=False))
     print(origin.round(2).to_string(index=False))

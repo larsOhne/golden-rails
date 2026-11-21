@@ -37,6 +37,21 @@ def annuity_factor(r=DISCOUNT_RATE, n=LIFETIME_YEARS):
     return r / (1 - (1 + r) ** -n)
 
 
+def drop_already_built(planned: pd.DataFrame) -> pd.DataFrame:
+    """Remove planned projects that add nothing to the current (OSM-based) network,
+    e.g. a 4-tracking where OSM already shows four tracks."""
+    keep = []
+    for r in planned.itertuples():
+        net = load_network()
+        added = net.apply_changes(r.changes)
+        new_or_etcs = any(op.split(":")[0] in ("new", "etcs") for op in r.changes.split(";"))
+        if added > 0 or new_or_etcs:
+            keep.append(r.Index)
+        else:
+            print(f"skipping {r.id} ({r.name}): already built according to OSM", flush=True)
+    return planned.loc[keep]
+
+
 def corridor_options(net) -> pd.DataFrame:
     rows = []
     for s in net.segments.values():
@@ -170,6 +185,7 @@ def evaluate(screen_seeds=32, refine_seeds=200, refine_top=30, procs=4,
     dm = dm or DisruptionModel()
     net = load_network()
     planned = pd.read_csv(DATA / "candidates.csv")
+    planned = drop_already_built(planned)
     planned["kind"] = "planned project"
     planned["segment"], planned["option"] = "", "P"
     for k in ("capex_construction", "capex_land", "capex_etcs"):

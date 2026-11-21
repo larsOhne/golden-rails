@@ -27,6 +27,7 @@ import zlib
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 
+import numpy as np
 import pandas as pd
 
 from .network import DATA, Network, channel_layout
@@ -75,8 +76,10 @@ OBSERVED = DATA / "observed"
 
 
 def _empirical_origin() -> dict:
-    """Observed origin departure delays (minutes >= 1) per category, from data/observed/."""
-    f = OBSERVED / "origin_delay_hist.csv"
+    """Observed delays (minutes >= 1) when trains enter the model, per category (data/observed/)."""
+    f = OBSERVED / "entry_delay_hist.csv"
+    if not f.exists():
+        f = OBSERVED / "origin_delay_hist.csv"
     if not f.exists():
         return {}
     h = pd.read_csv(f)
@@ -85,11 +88,45 @@ def _empirical_origin() -> dict:
 
 
 def _observed_p_origin(default: dict) -> dict:
+    f = OBSERVED / "entry_delay_hist.csv"
+    if f.exists():
+        h = pd.read_csv(f)
+        o = {c: float(g[g.d >= 1].n.sum() / g.n.sum()) for c, g in h.groupby("cat")}
+        return {k: float(o.get(k, v)) for k, v in default.items()}
     f = OBSERVED / "origin_delay.csv"
     if not f.exists():
         return dict(default)
     o = pd.read_csv(f).set_index("cat").p_delayed_ge1.to_dict()
     return {k: float(o.get(k, v)) for k, v in default.items()}
+
+
+NODE_FACTORS = DATA / "node_delay_calibration.csv"
+SEG_EXTRA = DATA / "segment_delay_calibration.csv"
+SEG_EXTRA_P = 0.3   # share of block traversals hit by the corridor's extra delay
+
+
+def _seg_extra() -> dict:
+    if os.environ.get("GR_SEG_EXTRA", "1") == "0" or not SEG_EXTRA.exists():
+        return {}
+    f = pd.read_csv(SEG_EXTRA)
+    return {r.segment: float(r.extra_min) for r in f.itertuples() if r.extra_min > 0}
+
+
+def _node_factors() -> dict:
+    if os.environ.get("GR_NODE_FACTORS", "1") == "0" or not NODE_FACTORS.exists():
+        return {}
+    f = pd.read_csv(NODE_FACTORS)
+    return {(r.node, r.cat): float(r.factor) for r in f.itertuples()}
+
+
+def _entry_by_node() -> dict:
+    """(node, type) -> (share of trains entering late, mean delay if late), observed."""
+    f = OBSERVED / "entry_delay_by_node.csv"
+    if not f.exists():
+        return {}
+    e = pd.read_csv(f)
+    e = e[e.trains >= 30]
+    return {(r.node, r.cat): (float(r.p_delayed_ge1), float(r.mean_if_delayed)) for r in e.itertuples()}
 
 
 @dataclass
@@ -100,11 +137,19 @@ class DisruptionModel:
         {"FV": 0.40, "NV": 0.25, "S": 0.20, "GV": 0.50}))
     # observed distribution of origin delays (>= 1 min); categories missing here use exponential
     origin_empirical: dict = field(default_factory=_empirical_origin)
+    # observed entry delay per first model node; scales probability and magnitude
+    entry_node: dict = field(default_factory=_entry_by_node)
+    # per (node, type) multiplier on the dwell extension: node conflicts / construction,
+    # calibrated on observed punctuality per station (validate.calibrate_nodes)
+    node_factor: dict = field(default_factory=_node_factors)
+    # per corridor: mean extra minutes per traversal (slow orders, construction), calibrated on
+    # observed delay growth between stations (validate.calibrate_segments)
+    seg_extra: dict = field(default_factory=_seg_extra)
     mean_origin: dict = field(default_factory=lambda: {"FV": 7.5, "NV": 4.0, "S": 3.0, "GV": 25.0})
     # dwell-time extensions at each scheduled stop
     # calibrated on observed punctuality (DB data, Oct 2026); covers node conflicts and
     # construction sites the model does not represent explicitly
-    p_dwell: dict = field(default_factory=lambda: {"FV": 0.40, "NV": 0.17, "S": 0.08})
+    p_dwell: dict = field(default_factory=lambda: {"FV": 0.30, "NV": 0.17, "S": 0.08})
     mean_dwell: dict = field(default_factory=lambda: {"FV": 3.0, "NV": 1.1, "S": 0.8})
     # running-time variation (multiplicative, normal, sd)
     run_sd: float = 0.03
@@ -116,9 +161,21 @@ class DisruptionModel:
     sigma_duration: float = 0.8
     scale: float = 1.0                  # global multiplier on exogenous train delays
 
+    def __post_init__(self):
+        # observed national entry statistics, used to rescale node-specific values
+        self._p_obs, self._mean_obs = {}, {}
+        for c, (vals, w) in self.origin_empirical.items():
+            self._mean_obs[c] = float(np.average(vals, weights=w))
+        f = OBSERVED / "entry_delay_hist.csv"
+        if f.exists():
+            h = pd.read_csv(f)
+            for c, g in h.groupby("cat"):
+                self._p_obs[c] = float(g[g.d >= 1].n.sum() / g.n.sum())
+
     def to_dict(self):
         return {k: (dict(v) if isinstance(v, dict) else v) for k, v in self.__dict__.items()
-                if k != "origin_empirical"}
+                if k not in ("origin_empirical", "node_factor", "entry_node", "_p_obs", "_mean_obs",
+                             "seg_extra")}
 
 
 # ----------------------------------------------------------------------------
@@ -530,10 +587,14 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
     for idx, tr in enumerate(trains):
         rng = random.Random(crc(seed, tr.id))
         prim = 0.0
-        if rng.random() < dm.p_origin[tr.ttype]:
+        en = dm.entry_node.get((tr.stops[0], tr.ttype))
+        p0 = dm.p_origin[tr.ttype]
+        p_in = p0 * en[0] / dm._p_obs.get(tr.ttype, p0) if en else p0   # keeps lever scaling of p_origin
+        if rng.random() < min(p_in, 0.99):
             emp = dm.origin_empirical.get(tr.ttype)
             if emp:
-                prim = rng.choices(emp[0], weights=emp[1])[0] * dm.scale
+                mag = en[1] / dm._mean_obs[tr.ttype] if en and tr.ttype in dm._mean_obs else 1.0
+                prim = rng.choices(emp[0], weights=emp[1])[0] * dm.scale * mag
             else:
                 prim = rng.expovariate(1.0 / (dm.mean_origin[tr.ttype] * dm.scale))
         state[idx] = (rng, [list(s) for s in tr.steps], list(tr.plan_entry),
@@ -549,6 +610,8 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
     n_stops = dict.fromkeys(TYPES, 0)
     n_punct = dict.fromkeys(TYPES, 0)
     node_stats: dict[tuple[str, str], list] = {}   # (node, type) -> [stops, on time, delay sum]
+    leg_stats: dict[tuple, list] = {}               # (from node, to node, type) -> [n, sum delay change]
+    dep_info: dict[int, tuple] = {}
     final_delay = dict.fromkeys(TYPES, 0.0)
     seg_wait: dict[str, float] = {}
     n_reroutes = 0
@@ -564,6 +627,11 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
         slow = tr.ttype != "FV"
         ready = max(t, plan_entry[i])
         ract = r * max(0.97, 1.0 + rng.gauss(0, dm.run_sd))
+        m_extra = dm.seg_extra.get(sid, 0.0)
+        if m_extra > 0:   # slow orders / construction on this corridor (calibrated, per block)
+            nbk = net.segments[sid].n_blocks()
+            if rng.random() < SEG_EXTRA_P:
+                ract += rng.expovariate(SEG_EXTRA_P * nbk / m_extra)
 
         ghosts = []
         if priority:
@@ -607,8 +675,15 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
             seg_wait[sid] = seg_wait.get(sid, 0.0) + wait
         tx = te + ract
         nxt = tx
+        if (i == 0 or steps[i - 1][5]) and plan_entry[i] > -math.inf:
+            dep_info[idx] = (tr.stops[0] if i == 0 else steps[i - 1][4], te - plan_entry[i])
         if is_stop:
             dl = max(0.0, tx - plan_arr[i])
+            if idx in dep_info and plan_arr[i] < math.inf:
+                a_node, dep_dl = dep_info.pop(idx)
+                ls = leg_stats.setdefault((a_node, end_node, tr.ttype), [0, 0.0])
+                ls[0] += 1
+                ls[1] += dl - dep_dl
             last = i == len(steps) - 1
             if tr.ttype == "FV" or last:
                 w = tr.stop_weight()
@@ -619,6 +694,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
                 if dl < 6.0:
                     n_punct[tr.ttype] += 1
                     pax_ontime[tr.ttype] += w
+            if tr.ttype != "GV" and plan_arr[i] < math.inf:
                 ns = node_stats.setdefault((end_node, tr.ttype), [0, 0, 0.0])
                 ns[0] += 1
                 ns[1] += dl < 6.0
@@ -628,6 +704,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
             nxt = tx + DWELL[tr.ttype]
             pdw = dm.p_dwell.get(tr.ttype, 0.0) if isinstance(dm.p_dwell, dict) else dm.p_dwell
             mdw = dm.mean_dwell.get(tr.ttype, 1.0) if isinstance(dm.mean_dwell, dict) else dm.mean_dwell
+            mdw *= dm.node_factor.get((end_node, tr.ttype), 1.0)
             if tr.ttype != "GV" and rng.random() < pdw:
                 nxt += rng.expovariate(1.0 / (mdw * dm.scale))
         if i + 1 < len(steps):
@@ -655,6 +732,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
         "n_priority_holds": n_priority_holds,
         "seg_wait": seg_wait,
         "node_stats": node_stats,
+        "leg_stats": leg_stats,
         **({"incidents": incidents} if trace is not None else {}),
     }
 

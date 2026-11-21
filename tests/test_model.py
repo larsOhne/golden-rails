@@ -10,6 +10,7 @@ def _quiet():
     dm.run_sd = 0
     dm.rate_full_closure = 0
     dm.rate_track_fault = 0
+    dm.seg_extra = {}
     return dm
 
 
@@ -79,8 +80,9 @@ def test_cost_model_terrain_and_landuse():
     per_km = lambda c, s: c["total"] / net.segments[s].length
     assert per_km(flat_rural, "LG-UE") < per_km(urban, "DO-BO") < per_km(gorge, "KO-MZ")
     # ETCS: constant per track-km regardless of topography / land use
-    e1, e2 = etcs_upgrade_cost(net.segments["LG-UE"]), etcs_upgrade_cost(net.segments["KO-MZ"])
-    assert abs(e1["total"] / 70 - e2["total"] / 180) < 1e-9
+    s1, s2 = net.segments["LG-UE"], net.segments["KO-MZ"]
+    e1, e2 = etcs_upgrade_cost(s1), etcs_upgrade_cost(s2)
+    assert abs(e1["total"] / (s1.length * s1.tracks) - e2["total"] / (s2.length * s2.tracks)) < 1e-9
 
 
 def test_priority_rule_favours_ice():

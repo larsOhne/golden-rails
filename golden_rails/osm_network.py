@@ -114,7 +114,53 @@ class RailGraph:
                 pw.append(np.full(m, wi))
         self.pts = np.c_[np.concatenate(px), np.concatenate(py)]
         self.pts_way = np.concatenate(pw)
+        # offsets of each way's densified points (points are appended way by way)
+        self.way_off = np.searchsorted(self.pts_way, np.arange(len(df) + 1))
         self.pts_tree = cKDTree(self.pts)
+
+    def _dir(self, j):
+        """Unit direction of the way at densified point j."""
+        w = self.pts_way[j]
+        a, b = self.way_off[w], self.way_off[w + 1]
+        j0, j1 = max(a, j - 1), min(b - 1, j + 1)
+        v = self.pts[j1] - self.pts[j0]
+        n = np.linalg.norm(v)
+        return v / n if n > 0 else None
+
+    def count_tracks(self, ways, a_xy, b_xy, step_km=1.5, end_km=2.5, radius_km=0.03):
+        """Median number of parallel main-line tracks at points on the path's own geometry."""
+        tags = pd.to_numeric(self.df.tracks, errors="coerce").to_numpy()
+        counts, acc = [], 0.0
+        for w in dict.fromkeys(ways):
+            a, b = self.way_off[w], self.way_off[w + 1]
+            n_pts = b - a
+            for j in range(a, b):
+                acc += 0.02
+                # skip points right at way joints (two ways of the same track meet there)
+                if n_pts >= 3 and (j - a < 1 or b - 1 - j < 1):
+                    continue
+                if acc < step_km:
+                    continue
+                p = self.pts[j]
+                if min(np.hypot(*(p - a_xy)), np.hypot(*(p - b_xy))) < end_km:
+                    continue
+                acc = 0.0
+                d0 = self._dir(j)
+                if d0 is None:
+                    continue
+                near = self.pts_tree.query_ball_point(p, radius_km)
+                par = set()
+                for k in near:
+                    wk = self.pts_way[k]
+                    if wk in par:
+                        continue
+                    dk = self._dir(k)
+                    if dk is not None and abs(float(np.dot(d0, dk))) > 0.9:
+                        par.add(wk)
+                n = len(par)
+                tg = np.nanmax([tags[x] for x in par]) if par else np.nan
+                counts.append(int(max(n, tg)) if np.isfinite(tg) else n)
+        return counts
 
     def _graph(self, prefer_hs: bool):
         if not hasattr(self, "_g"):
@@ -178,34 +224,8 @@ def analyse(prefer_cache=True):
         else:
             vmed = np.nan
         share = lambda col: float((L * sub[col].to_numpy()).sum() / max(length, 1e-9))
-        # parallel tracks: sample points along the path, away from the corridor ends
-        pts = G.coords[nodes]
-        seg_l = np.hypot(*np.diff(pts, axis=0).T)
-        cum = np.r_[0, np.cumsum(seg_l)]
-        counts = []
-        if cum[-1] > 4:
-            for d in np.arange(2.5, cum[-1] - 2.5, 1.7):
-                k = min(np.searchsorted(cum, d) - 1, len(pts) - 2)
-                t = (d - cum[k]) / max(seg_l[k], 1e-9)
-                p = pts[k] + (pts[k + 1] - pts[k]) * t
-                dirv = (pts[k + 1] - pts[k]) / max(seg_l[k], 1e-9)
-                near = G.pts_tree.query_ball_point(p, 0.03)
-                cand = set()
-                for j in near:
-                    wj = G.pts_way[j]
-                    cand.add(wj)
-                # only roughly parallel ways
-                par = 0
-                for wj in cand:
-                    la, lo = df.lats.iat[wj], df.lons.iat[wj]
-                    wx, wy = xy([la[0], la[-1]], [lo[0], lo[-1]])
-                    v = np.array([wx[1] - wx[0], wy[1] - wy[0]])
-                    if np.linalg.norm(v) < 1e-6:
-                        continue
-                    if abs(np.dot(v / np.linalg.norm(v), dirv)) > 0.8:
-                        par += 1
-                tag = pd.to_numeric(df.tracks.iloc[list(cand)], errors="coerce").max() if cand else np.nan
-                counts.append(max(par, tag if np.isfinite(tag) else 0))
+        # parallel tracks counted on the path's own geometry, away from stations
+        counts = G.count_tracks(list(ways), np.array(a), np.array(b))
         tracks = int(np.median(counts)) if counts else np.nan
         rows.append({"segment": s.id, "found": True, "osm_length_km": round(length, 1),
                      "osm_vmax": vmed, "osm_tracks": tracks,
@@ -219,22 +239,36 @@ def analyse(prefer_cache=True):
     return out
 
 
-def apply(osm: pd.DataFrame, path=DATA / "segments.csv"):
-    """Write OSM-derived attributes into segments.csv where they are plausible."""
-    seg = pd.read_csv(path)
+# OSM path partly follows a parallel single-track line here; keep the curated track count
+KEEP_CURATED_TRACKS = {"B-DD"}
+
+
+def apply(osm: pd.DataFrame, path=DATA / "segments.csv", base=DATA / "segments_curated.csv"):
+    """Write OSM-derived attributes into segments.csv where they are plausible.
+
+    Starts from the hand-curated attributes (segments_curated.csv) so the step is repeatable."""
+    seg = pd.read_csv(base if base.exists() else path)
     o = osm.set_index("segment")
     changed = []
     for i, r in seg.iterrows():
         if r["id"] not in o.index or not o.loc[r["id"], "found"]:
             continue
         x = o.loc[r["id"]]
-        # length: accept when the OSM path is not an obvious detour
-        if 0.75 * r["length_km"] <= x.osm_length_km <= 1.35 * r["length_km"]:
-            seg.at[i, "length_km"] = round(float(x.osm_length_km))
-        if np.isfinite(x.osm_tracks) and 1 <= x.osm_tracks <= 6 and x.n_track_samples >= 3:
-            if int(x.osm_tracks) != r["tracks"]:
-                changed.append((r["id"], "tracks", r["tracks"], int(x.osm_tracks)))
-            seg.at[i, "tracks"] = int(x.osm_tracks)
+        ratio = x.osm_length_km / r["length_km"]
+        plausible = 0.8 <= ratio <= 1.2 and x.share_electrified >= 0.7
+        nbs_miss = "NBS" in str(r["note"]) and x.share_highspeed < 0.5
+        if not plausible or nbs_miss:
+            continue            # OSM path probably took another line: keep curated values
+        seg.at[i, "length_km"] = round(float(x.osm_length_km))
+        metro = r["urban_share"] + r["suburban_share"] > 0.5    # separate S-Bahn tracks run alongside
+        if r["id"] in KEEP_CURATED_TRACKS:
+            metro = True
+        # bottleneck-relevant track count: lower quartile along the corridor
+        t = round(x.osm_tracks_p25) if np.isfinite(x.osm_tracks_p25) else np.nan
+        if not metro and np.isfinite(t) and 1 <= t <= 6 and x.n_track_samples >= 5:
+            if int(t) != r["tracks"]:
+                changed.append((r["id"], "tracks", int(r["tracks"]), int(t)))
+            seg.at[i, "tracks"] = int(t)
         if np.isfinite(x.osm_vmax) and 60 <= x.osm_vmax <= 300:
             seg.at[i, "vmax"] = int(x.osm_vmax)
         seg.at[i, "etcs"] = int(x.share_etcs >= 0.5)
