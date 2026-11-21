@@ -32,14 +32,14 @@
     "sigma_duration": 0.8,
     "scale": 1.0
   },
-  "baseline_pax_delay_min_per_day": 7311585.702693697,
-  "baseline_train_delay_min_per_day": 99195.74679576844,
-  "baseline_avg_delay_per_pax_min": 7.6504707241565475,
+  "baseline_pax_delay_min_per_day": 7295386.271166073,
+  "baseline_train_delay_min_per_day": 96304.0247581934,
+  "baseline_avg_delay_per_pax_min": 7.648838218137663,
   "baseline_punct": {
-    "FV": 0.49151468860164504,
-    "NV": 0.7440538877952756,
-    "S": 0.7964592592592592,
-    "GV": 0.7148688271604939
+    "FV": 0.4700094809196492,
+    "NV": 0.7448363681102361,
+    "S": 0.7675925925925927,
+    "GV": 0.6989814814814815
   },
   "annuity_factor": 0.02671694065778316
 }
