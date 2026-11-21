@@ -64,6 +64,8 @@ class Segment:
     note: str = ""
     new: bool = False
     nb: int = 0   # block count, fixed by the *base* track layout (upgrades keep it)
+    f_fv: float = 1.0    # running-time factor calibrated on GTFS (long-distance)
+    f_reg: float = 1.0   # running-time factor calibrated on GTFS (regional / S-Bahn)
 
     def __post_init__(self):
         if not self.nb:
@@ -100,7 +102,8 @@ class Network:
     def run_minutes(self, seg: Segment, ttype: str, train_vmax: float | None = None) -> float:
         tt = TRAIN_TYPES[ttype]
         v = min(seg.vmax, train_vmax or tt["vmax"], tt["vmax"])
-        return seg.length / (v * tt["eff"]) * 60.0
+        f = seg.f_fv if ttype == "FV" else seg.f_reg if ttype in ("NV", "S") else max(1.0, seg.f_fv)
+        return seg.length / (v * tt["eff"]) * 60.0 * f
 
     def shortest_path(self, src: str, dst: str, ttype: str, train_vmax=None,
                       extra_cost=None) -> list[tuple[str, int]]:
@@ -187,7 +190,7 @@ def segment_name(net: "Network", sid: str) -> str:
     return name
 
 
-def load_network(data_dir: Path = DATA) -> Network:
+def load_network(data_dir: Path = DATA, runtime: bool = True) -> Network:
     nodes = pd.read_csv(data_dir / "nodes.csv").set_index("id")
     segs = {}
     df = pd.read_csv(data_dir / "segments.csv").fillna("")
@@ -202,4 +205,10 @@ def load_network(data_dir: Path = DATA) -> Network:
             urban_share=float(r["urban_share"]), suburban_share=float(r["suburban_share"]),
             open_share=float(r["open_share"]), protected_share=float(r["protected_share"]),
             note=r["note"])
+    rt = data_dir / "segment_runtime.csv"
+    if runtime and rt.exists():
+        for _, r in pd.read_csv(rt).iterrows():
+            if r["segment"] in segs:
+                segs[r["segment"]].f_fv = float(r["factor_fv"])
+                segs[r["segment"]].f_reg = float(r["factor_reg"])
     return Network(nodes, segs)

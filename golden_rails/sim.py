@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import heapq
 import math
+import os
 import random
 import zlib
 from bisect import bisect_left, bisect_right
@@ -70,14 +71,41 @@ def hm(s: str) -> float:
 # ----------------------------------------------------------------------------
 # Disruption parameters ("standard disruptions")
 # ----------------------------------------------------------------------------
+OBSERVED = DATA / "observed"
+
+
+def _empirical_origin() -> dict:
+    """Observed origin departure delays (minutes >= 1) per category, from data/observed/."""
+    f = OBSERVED / "origin_delay_hist.csv"
+    if not f.exists():
+        return {}
+    h = pd.read_csv(f)
+    h = h[h.d >= 1]
+    return {c: (g.d.astype(float).tolist(), g.n.astype(float).tolist()) for c, g in h.groupby("cat")}
+
+
+def _observed_p_origin(default: dict) -> dict:
+    f = OBSERVED / "origin_delay.csv"
+    if not f.exists():
+        return dict(default)
+    o = pd.read_csv(f).set_index("cat").p_delayed_ge1.to_dict()
+    return {k: float(o.get(k, v)) for k, v in default.items()}
+
+
 @dataclass
 class DisruptionModel:
     # primary (exogenous) delays at train origin: probability, mean (exp. dist.)
-    p_origin: dict = field(default_factory=lambda: {"FV": 0.40, "NV": 0.25, "S": 0.20, "GV": 0.50})
+    # observed share of trains starting late (DB data) where available, else assumptions
+    p_origin: dict = field(default_factory=lambda: _observed_p_origin(
+        {"FV": 0.40, "NV": 0.25, "S": 0.20, "GV": 0.50}))
+    # observed distribution of origin delays (>= 1 min); categories missing here use exponential
+    origin_empirical: dict = field(default_factory=_empirical_origin)
     mean_origin: dict = field(default_factory=lambda: {"FV": 7.5, "NV": 4.0, "S": 3.0, "GV": 25.0})
     # dwell-time extensions at each scheduled stop
-    p_dwell: float = 0.25
-    mean_dwell: float = 1.5
+    # calibrated on observed punctuality (DB data, Oct 2026); covers node conflicts and
+    # construction sites the model does not represent explicitly
+    p_dwell: dict = field(default_factory=lambda: {"FV": 0.40, "NV": 0.17, "S": 0.08})
+    mean_dwell: dict = field(default_factory=lambda: {"FV": 3.0, "NV": 1.1, "S": 0.8})
     # running-time variation (multiplicative, normal, sd)
     run_sd: float = 0.03
     # infrastructure incidents, per km per day
@@ -89,7 +117,8 @@ class DisruptionModel:
     scale: float = 1.0                  # global multiplier on exogenous train delays
 
     def to_dict(self):
-        return {k: (dict(v) if isinstance(v, dict) else v) for k, v in self.__dict__.items()}
+        return {k: (dict(v) if isinstance(v, dict) else v) for k, v in self.__dict__.items()
+                if k != "origin_empirical"}
 
 
 # ----------------------------------------------------------------------------
@@ -247,6 +276,7 @@ class Train:
     plan_entry: list = field(default_factory=list)
     plan_arr: list = field(default_factory=list)
     plan_ch: list = field(default_factory=list)
+    hold: dict = field(default_factory=dict)   # node -> earliest scheduled departure (GTFS)
 
     def stop_weight(self) -> float:
         """Passengers alighting per scheduled stop after the origin."""
@@ -281,7 +311,66 @@ def route_train(net: Network, tr: Train, via: list[str]):
         tr.steps[-1][5] = True
 
 
-def build_trains(net: Network, data_dir=DATA) -> list[Train]:
+TIMETABLE = os.environ.get("GR_TIMETABLE", "gtfs")   # "gtfs" (real timetable) or "curated"
+PAX_FV_LINE = {"ICE": 350.0, "ECE": 300.0, "RJ": 250.0, "RJX": 250.0}
+
+
+def build_trains(net: Network, data_dir=DATA, source: str | None = None) -> list[Train]:
+    source = source or TIMETABLE
+    if source == "gtfs" and (data_dir / "timetable_gtfs.csv").exists():
+        return build_trains_gtfs(net, data_dir)
+    return build_trains_curated(net, data_dir)
+
+
+def _freight(net: Network, data_dir) -> list[Train]:
+    trains = []
+    gv = pd.read_csv(data_dir / "freight_flows.csv")
+    for r in gv.itertuples():
+        via = r.via.split()
+        n = int(r.trains_per_day_per_dir)
+        for direction, seq in (("a", via), ("b", via[::-1])):
+            gap = 1440.0 / n
+            off = (crc(r.id, direction) % 1000) / 1000 * gap
+            for k in range(n):
+                tr = Train(f"{r.id}-{direction}-{k}", "GV", 100.0, off + k * gap, [seq[0], seq[-1]])
+                route_train(net, tr, seq)
+                trains.append(tr)
+    return trains
+
+
+def build_trains_gtfs(net: Network, data_dir=DATA) -> list[Train]:
+    """Passenger trains from the real GTFS timetable (data/timetable_gtfs.csv) + curated freight.
+
+    S-Bahn trips are kept only where S-Bahn shares main-line tracks (segments with s_tph > 0
+    in segments.csv); S-Bahn networks on their own tracks (Hamburg, Berlin, München, ...) are dropped.
+    """
+    trains: list[Train] = []
+    major = net.nodes["major"].to_dict()
+    tt = pd.read_csv(data_dir / "timetable_gtfs.csv")
+    for r in tt.itertuples():
+        stops = r.stops.split()
+        deps = [float(x) for x in str(r.dep_min).split()]
+        cat = r.category
+        if cat == "FV":
+            prefix = "".join(ch for ch in str(r.line) if ch.isalpha()).upper()
+            vmax = 300.0 if prefix == "ICE" else 230.0 if prefix.startswith("RJ") else 200.0
+            pax = PAX_FV_LINE.get(prefix, 250.0)
+        else:
+            vmax = 160.0 if cat == "NV" else 120.0
+            pax = PAX_DEFAULT[cat] * (1.0 + 0.25 * (major[stops[0]] + major[stops[-1]]) / 2)
+        tr = Train(r.train_id, cat, vmax, deps[0], stops, pax=pax * hour_factor(deps[0]),
+                   hold=dict(zip(stops[1:-1], deps[1:])))
+        try:
+            route_train(net, tr, stops)
+        except ValueError:
+            continue
+        if cat == "S" and any(net.segments[st[0]].s_tph <= 0 for st in tr.steps):
+            continue
+        trains.append(tr)
+    return trains + _freight(net, data_dir)
+
+
+def build_trains_curated(net: Network, data_dir=DATA) -> list[Train]:
     trains: list[Train] = []
     major = net.nodes["major"].to_dict()
     fv = pd.read_csv(data_dir / "fv_lines.csv")
@@ -378,6 +467,8 @@ def plan_timetable(net: Network, trains: list[Train], base: dict | None = None) 
             tr.plan_arr.append(t)
             if is_stop:
                 t += DWELL[tr.ttype]
+                if tr.hold and end_node in tr.hold:
+                    t = max(t, tr.hold[end_node])
     return {"planned_wait_min": planned_wait, "n_fixed": n_fixed, "n_replanned": len(to_plan)}
 
 
@@ -440,7 +531,11 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
         rng = random.Random(crc(seed, tr.id))
         prim = 0.0
         if rng.random() < dm.p_origin[tr.ttype]:
-            prim = rng.expovariate(1.0 / (dm.mean_origin[tr.ttype] * dm.scale))
+            emp = dm.origin_empirical.get(tr.ttype)
+            if emp:
+                prim = rng.choices(emp[0], weights=emp[1])[0] * dm.scale
+            else:
+                prim = rng.expovariate(1.0 / (dm.mean_origin[tr.ttype] * dm.scale))
         state[idx] = (rng, [list(s) for s in tr.steps], list(tr.plan_entry),
                       list(tr.plan_arr), list(tr.plan_ch))
         heapq.heappush(pq, (tr.plan_entry[0] + prim, idx, 0))
@@ -453,6 +548,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
     pax_ontime = dict.fromkeys(TYPES, 0.0)
     n_stops = dict.fromkeys(TYPES, 0)
     n_punct = dict.fromkeys(TYPES, 0)
+    node_stats: dict[tuple[str, str], list] = {}   # (node, type) -> [stops, on time, delay sum]
     final_delay = dict.fromkeys(TYPES, 0.0)
     seg_wait: dict[str, float] = {}
     n_reroutes = 0
@@ -523,11 +619,17 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
                 if dl < 6.0:
                     n_punct[tr.ttype] += 1
                     pax_ontime[tr.ttype] += w
+                ns = node_stats.setdefault((end_node, tr.ttype), [0, 0, 0.0])
+                ns[0] += 1
+                ns[1] += dl < 6.0
+                ns[2] += dl
             if last:
                 final_delay[tr.ttype] += dl
             nxt = tx + DWELL[tr.ttype]
-            if rng.random() < dm.p_dwell and tr.ttype != "GV":
-                nxt += rng.expovariate(1.0 / (dm.mean_dwell * dm.scale))
+            pdw = dm.p_dwell.get(tr.ttype, 0.0) if isinstance(dm.p_dwell, dict) else dm.p_dwell
+            mdw = dm.mean_dwell.get(tr.ttype, 1.0) if isinstance(dm.mean_dwell, dict) else dm.mean_dwell
+            if tr.ttype != "GV" and rng.random() < pdw:
+                nxt += rng.expovariate(1.0 / (mdw * dm.scale))
         if i + 1 < len(steps):
             heapq.heappush(pq, (nxt, idx, i + 1))
             if priority:
@@ -552,6 +654,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
         "n_reroutes": n_reroutes,
         "n_priority_holds": n_priority_holds,
         "seg_wait": seg_wait,
+        "node_stats": node_stats,
         **({"incidents": incidents} if trace is not None else {}),
     }
 

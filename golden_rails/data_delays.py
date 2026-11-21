@@ -1,0 +1,164 @@
+"""Observed delays from the DB Timetables API (dataset piebro/deutsche-bahn-data, CC BY 4.0).
+
+From the monthly processed stop data (one row per train stop with planned and
+actual times) this computes, for passenger trains:
+
+* punctuality per category (share of arrivals < 6 min late, cancellations excluded),
+* the distribution of departure delays at the train's first station (origin delay),
+* punctuality and mean arrival delay at each model node,
+* delay change between consecutive model nodes per corridor (where delays grow).
+
+Outputs (small CSVs, committed): data/observed/*.csv
+
+    python -m golden_rails.data_delays data/raw/delays/data-2026-10.parquet
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pyarrow.parquet as pq
+
+from .network import load_network, place_name
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "data" / "observed"
+
+FV_TYPES = {"ICE", "IC", "EC", "ECE", "EN", "NJ", "RJ", "RJX", "TGV", "FLX", "EST", "D", "IR", "ICD"}
+S_TYPES = {"S", "AVG"}
+DROP_TYPES = {"Bus", "BUS", "STR"}
+
+# DB station names for the model nodes where the generic rule below does not hit
+NODE_STATION = {
+    "MS": "Münster (Westf) Hbf", "HAM": "Hamm (Westf) Hbf", "VER": "Verden (Aller)", "ROT": "Rotenburg (Wümme)",
+    "MI": "Minden (Westf)", "SIE": "Siegburg/Bonn", "FFLF": "Frankfurt am Main Flughafen Fernbahnhof",
+    "F": "Frankfurt (Main) Hbf", "FR": "Freiburg (Breisgau) Hbf", "BAS": "Basel Bad Bf", "HAL": "Halle (Saale) Hbf",
+    "WB": "Lutherstadt Wittenberg Hbf", "KS": "Kassel-Wilhelmshöhe", "SPA": "Berlin-Spandau", "WI": "Mainz-Kastel",
+    "EIS": "Eisenach", "OB": "Oberhausen Hbf", "HL": "Lübeck Hbf", "SDL": "Stendal Hbf", "MD": "Magdeburg Hbf",
+    "WOB": "Wolfsburg Hbf", "BS": "Braunschweig Hbf", "IN": "Ingolstadt Hbf", "PA": "Passau Hbf",
+    "HI": "Hildesheim Hbf", "BI": "Bielefeld Hbf", "BO": "Bochum Hbf", "HD": "Heidelberg Hbf",
+    "KL": "Kaiserslautern Hbf", "SB": "Saarbrücken Hbf", "WUP": "Wuppertal Hbf", "DA": "Darmstadt Hbf",
+    "HU": "Hanau Hbf", "EF": "Erfurt Hbf", "R": "Regensburg Hbf", "U": "Ulm Hbf", "A": "Augsburg Hbf",
+    "CE": "Celle Pbf", "B": "Berlin Hauptbahnhof",
+}
+
+
+def category(tt: pd.Series) -> pd.Series:
+    out = pd.Series("NV", index=tt.index)
+    out[tt.isin(FV_TYPES)] = "FV"
+    out[tt.isin(S_TYPES)] = "S"
+    out[tt.isin(DROP_TYPES)] = "DROP"
+    return out
+
+
+def node_stations(names: pd.Series) -> dict[str, str]:
+    """Model node -> DB station name (most frequent matching name)."""
+    net = load_network()
+    counts = names.value_counts()
+    mapping = {}
+    for nid in net.nodes.index:
+        if nid in NODE_STATION and NODE_STATION[nid] in counts.index:
+            mapping[nid] = NODE_STATION[nid]
+            continue
+        pn = place_name(net.nodes, nid)
+        cands = [f"{pn} Hbf", pn, net.nodes.loc[nid, "name"]]
+        for c in cands:
+            if c in counts.index:
+                mapping[nid] = c
+                break
+    return mapping
+
+
+def load(path: Path) -> pd.DataFrame:
+    cols = ["station_name", "train_type", "train_number", "train_line_ride_id", "train_line_station_num",
+            "arrival_planned_time", "arrival_change_time", "departure_planned_time", "departure_change_time",
+            "arrival_is_canceled", "departure_is_canceled", "is_replacement_train", "is_additional_stop"]
+    df = pq.read_table(path, columns=cols).to_pandas()
+    df["cat"] = category(df.train_type)
+    df = df[(df.cat != "DROP") & ~df.is_replacement_train & ~df.is_additional_stop]
+    arr = (df.arrival_change_time.fillna(df.arrival_planned_time) - df.arrival_planned_time)
+    dep = (df.departure_change_time.fillna(df.departure_planned_time) - df.departure_planned_time)
+    df["arr_delay"] = arr.dt.total_seconds() / 60
+    df["dep_delay"] = dep.dt.total_seconds() / 60
+    df.loc[df.arrival_is_canceled, "arr_delay"] = np.nan
+    df.loc[df.departure_is_canceled, "dep_delay"] = np.nan
+    return df
+
+
+def analyse(path: Path, out=OUT):
+    out.mkdir(parents=True, exist_ok=True)
+    df = load(path)
+    month = re.search(r"(\d{4}-\d{2})", path.name).group(1)
+
+    # 1. punctuality per category (DB definition: arrivals < 6 min, cancellations excluded)
+    a = df[df.arrival_planned_time.notna()]
+    punct = a.groupby("cat").agg(
+        stops=("arr_delay", "size"),
+        cancelled_share=("arr_delay", lambda x: x.isna().mean()),
+        punct_lt6=("arr_delay", lambda x: (x.dropna() < 6).mean()),
+        punct_lt16=("arr_delay", lambda x: (x.dropna() < 16).mean()),
+        mean_delay=("arr_delay", "mean"),
+    ).reset_index()
+    punct.insert(0, "month", month)
+    punct.to_csv(out / "punctuality_by_category.csv", index=False)
+
+    # 2. origin departure delays (first station of each ride)
+    first = df.loc[df.groupby("train_line_ride_id").train_line_station_num.idxmin()]
+    first = first[first.departure_planned_time.notna() & first.dep_delay.notna()]
+    rows = []
+    for cat, g in first.groupby("cat"):
+        d = g.dep_delay.clip(lower=0)
+        late = d[d >= 1]
+        rows.append({"cat": cat, "trains": len(d), "p_delayed_ge1": (d >= 1).mean(),
+                     "mean_if_delayed": late.mean(), "p_ge6": (d >= 6).mean(), "p_ge16": (d >= 16).mean(),
+                     **{f"q{q}": d.quantile(q / 100) for q in (50, 75, 90, 95, 99)}})
+    origin = pd.DataFrame(rows)
+    origin.to_csv(out / "origin_delay.csv", index=False)
+    hist = (first.assign(d=first.dep_delay.clip(lower=0, upper=120).round())
+            .groupby(["cat", "d"]).size().rename("n").reset_index())
+    hist.to_csv(out / "origin_delay_hist.csv", index=False)
+
+    # 3. per model node
+    mapping = node_stations(df.station_name)
+    inv = {v: k for k, v in mapping.items()}
+    a = a.assign(node=a.station_name.map(inv))
+    an = a[a.node.notna()]
+    per_node = an.groupby(["node", "cat"]).agg(
+        stops=("arr_delay", "size"), punct_lt6=("arr_delay", lambda x: (x.dropna() < 6).mean()),
+        mean_delay=("arr_delay", "mean")).reset_index()
+    per_node["station"] = per_node.node.map(mapping)
+    per_node.to_csv(out / "punctuality_by_node.csv", index=False)
+
+    # 4. delay change between consecutive model nodes within the same ride
+    s = df.assign(node=df.station_name.map(inv))
+    s = s[s.node.notna()].sort_values(["train_line_ride_id", "train_line_station_num"])
+    s["next_node"] = s.groupby("train_line_ride_id").node.shift(-1)
+    s["next_arr_delay"] = s.groupby("train_line_ride_id").arr_delay.shift(-1)
+    legs = s[s.next_node.notna() & (s.next_node != s.node) & s.dep_delay.notna() & s.next_arr_delay.notna()]
+    legs = legs.assign(change=legs.next_arr_delay - legs.dep_delay)
+    corr = legs.groupby(["node", "next_node", "cat"]).agg(
+        trains=("change", "size"), mean_change=("change", "mean"),
+        p_gain_ge3=("change", lambda x: (x >= 3).mean()),
+        mean_dep_delay=("dep_delay", "mean")).reset_index()
+    corr.to_csv(out / "delay_change_by_leg.csv", index=False)
+
+    meta = {"source": "piebro/deutsche-bahn-data (DB Timetables API, CC BY 4.0)", "file": path.name,
+            "month": month, "rows_used": int(len(df)), "node_station_map": mapping}
+    (out / "meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    return punct, origin, per_node, corr
+
+
+def main():
+    path = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data/raw/delays/data-2026-10.parquet"
+    punct, origin, per_node, corr = analyse(path)
+    pd.set_option("display.width", 200)
+    print(punct.round(3).to_string(index=False))
+    print(origin.round(2).to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()

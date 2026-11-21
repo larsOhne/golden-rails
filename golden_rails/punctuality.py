@@ -111,7 +111,8 @@ def _run(args):
     dm = DisruptionModel(**_DM_DICT)
     f_train, f_inc = levers
     dm.p_origin = {k: v * f_train for k, v in dm.p_origin.items()}
-    dm.p_dwell *= f_train
+    dm.p_dwell = ({k: v * f_train for k, v in dm.p_dwell.items()} if isinstance(dm.p_dwell, dict)
+                  else dm.p_dwell * f_train)
     dm.rate_track_fault *= f_inc
     dm.rate_full_closure *= f_inc
     net = load_network()
