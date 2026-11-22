@@ -30,6 +30,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.optimize import lsq_linear
 
 from . import sim as S
 from .network import load_network, place_name
@@ -238,7 +239,7 @@ def calibrate_ops(params, procs, days=40, iterations=4):
     return params
 
 
-def calibrate_segments(params, procs, iterations=4, days=40, gain=0.6, obs_dir=OBS, min_trains=150):
+def calibrate_segments(params, procs, iterations=4, days=40, gain=0.8, obs_dir=OBS, min_trains=150):
     """Corridor correction (both signs), separately for long-distance trains (fitted to the observed
     FV delay growth between consecutive stations) and for regional trains (fitted to the NV legs)."""
     net = load_network()
@@ -266,20 +267,31 @@ def calibrate_segments(params, procs, iterations=4, days=40, gain=0.6, obs_dir=O
         msg = []
         for cat in groups:
             m = obs_all[obs_all.cat == cat].merge(sim[sim.cat == cat], on=["node", "next_node"], how="inner")
-            num, den, errs = {}, {}, []
+            # joint weighted least squares: the change of a leg's delay growth is the sum of the changes
+            # of the corridor corrections along its path (Gauss-Newton step, bounded, slightly ridged)
+            sids = sorted({s_ for p in paths[cat].values() for s_ in p})
+            col = {s_: k for k, s_ in enumerate(sids)}
+            A, b, w, errs = [], [], [], []
             for r in m.itertuples():
                 p = paths[cat].get((r.node, r.next_node))
                 if not p or r.sim_n < 10:
                     continue
-                res = r.mean_change - r.sim_mean_change
-                errs.append(abs(res))
-                L = sum(net.segments[s].length for s in p)
+                row = np.zeros(len(sids))
                 for sid in p:
-                    share = net.segments[sid].length / L
-                    num[sid] = num.get(sid, 0.0) + r.trains * res * share
-                    den[sid] = den.get(sid, 0.0) + r.trains * share
-            for sid in num:
-                extra[cat][sid] = max(floor[cat][sid], extra[cat][sid] + gain * num[sid] / den[sid])
+                    row[col[sid]] = 1.0
+                A.append(row)
+                b.append(r.mean_change - r.sim_mean_change)
+                w.append(np.sqrt(r.trains))
+                errs.append(abs(b[-1]))
+            A, b, w = np.array(A), np.array(b), np.array(w)
+            lam = 0.3 * np.median(w)
+            Aw = np.vstack([A * w[:, None], lam * np.eye(len(sids))])
+            bw = np.concatenate([b * w, np.zeros(len(sids))])
+            lo = np.array([floor[cat][s_] - extra[cat][s_] for s_ in sids])
+            hi = np.array([30.0 - extra[cat][s_] for s_ in sids])
+            sol = lsq_linear(Aw, bw, bounds=(np.minimum(lo, -1e-9), np.maximum(hi, 1e-9)))
+            for s_, k in col.items():
+                extra[cat][s_] = float(np.clip(extra[cat][s_] + gain * sol.x[k], floor[cat][s_], 30.0))
             msg.append(f"{cat} {np.mean(errs):.2f} min over {len(errs)} legs")
         print(f"segments iteration {it + 1}: mean |leg error| " + "; ".join(msg), flush=True)
     final = {cat: {k: (v * SEG_EXTRA_SHRINK if v > 0 else v) for k, v in extra[cat].items()} for cat in groups}
@@ -331,6 +343,7 @@ def calibrate(procs=4):
     params = calibrate_segments(params, procs, iterations=5)
     params = calibrate_nodes(params, procs, iterations=5)
     params = calibrate_segments(params, procs, iterations=3)
+    params = calibrate_nodes(params, procs, iterations=3)
     params = calibrate_ops(params, procs, iterations=2)
     write_ops(params)
     return params
