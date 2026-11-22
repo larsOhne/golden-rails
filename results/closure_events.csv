@@ -1,0 +1,15 @@
+event,months,segments,legs,name
+E1,2025-11,HAL-WB L-WB WB-B,B-WB; HAL-WB; L-WB,"Halle (Saale)–Lutherstadt Wittenberg, Leipzig–Lutherstadt Wittenberg, Lutherstadt Wittenberg–Berlin"
+E2,2025-11 2026-09,U-IN,IN-U,Ulm–Ingolstadt
+E3,2026-01,OB-EMM,EMM-OB,Oberhausen–Emmerich
+E4,2026-01 2026-04,MZ-DA,DA-MZ,Mainz–Darmstadt
+E5,2026-02,D-K K-AC,AC-D,"Düsseldorf–Köln, Köln–Aachen"
+E6,2026-02 2026-03 2026-04 2026-05 2026-06,WUP-K,K-WUP,Wuppertal–Köln
+E7,2026-02 2026-07 2026-08 2026-09,B-MD,B-MD,Berlin–Magdeburg
+E8,2026-03 2026-06,DO-WUP,DO-WUP,Dortmund–Wuppertal
+E9,2026-04,MZ-FFLF,FFLF-MZ,Mainz–Frankfurt Flughafen
+E10,2026-05 2026-06,MSH-LG ROT-VER UE-CE,CE-UE; LG-MSH; ROT-VER,"Maschen–Lüneburg, Rotenburg (Wümme)–Verden, Uelzen–Celle"
+E11,2026-06,LG-UE,LG-UE,Lüneburg–Uelzen
+E12,2026-07,HI-LEH K-AC,AC-K; HI-LEH,"Hildesheim–Lehrte, Köln–Aachen"
+E13,2026-09 2026-10,E-DU,DU-E,Essen–Duisburg
+E14,2026-10,MD-BS SDL-MD SPA-SDL WOB-BS,SDL-SPA; SDL-WOB,"Magdeburg–Braunschweig, Stendal–Magdeburg, Berlin-Spandau–Stendal, Wolfsburg–Braunschweig"

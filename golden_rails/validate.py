@@ -221,7 +221,8 @@ def calibrate_segments(params, procs, iterations=4, days=16, gain=0.8, obs_dir=O
             continue
         if p:
             paths[(r.node, r.next_node)] = [s for s, _ in p]
-    extra = {sid: 0.0 for sid in net.segments}
+    prev = params.get("seg_extra_raw") or {}
+    extra = {sid: float(prev.get(sid, 0.0)) for sid in net.segments}
     floor = {sid: -MAX_SPEEDUP * net.run_minutes(s, "FV") for sid, s in net.segments.items()}
     for it in range(iterations):
         out = simulate(days, procs, {**params, "seg_extra": extra}, seed0=9000 + 100 * it)
@@ -248,6 +249,7 @@ def calibrate_segments(params, procs, iterations=4, days=16, gain=0.8, obs_dir=O
     pd.DataFrame([{"segment": k, "extra_min": round(v, 3)} for k, v in final.items()]).to_csv(
         S.SEG_EXTRA, index=False)
     params["seg_extra"] = final
+    params["seg_extra_raw"] = dict(extra)
     return params
 
 
@@ -287,8 +289,9 @@ def calibrate(procs=4):
     params = calibrate_ops(params, procs)
     write_ops(params)
     params = calibrate_nodes(params, procs, iterations=8)
-    params = calibrate_segments(params, procs)
-    params = calibrate_nodes(params, procs, iterations=6)
+    for rnd in range(3):          # corridors and stations interact: alternate
+        params = calibrate_segments(params, procs, iterations=4 if rnd == 0 else 3)
+        params = calibrate_nodes(params, procs, iterations=5)
     params = calibrate_ops(params, procs, iterations=2)
     write_ops(params)
     return params
@@ -328,8 +331,14 @@ def run(days=30, procs=4, obs_dir=OBS, tag=""):
     m = m[(m.obs_stops >= 300) & (m.sim_stops >= 5)]
     m.to_csv(RES / f"validation_nodes{tag}.csv", index=False)
     obs_nat = pd.read_csv(obs_dir / "punctuality_by_category.csv").set_index("cat").punct_lt6
-    summary = {"national_sim": {k: float(nat[f"punct_{k}"]) for k in ("FV", "NV", "S")},
-               "national_obs": {k: float(obs_nat[k]) for k in ("FV", "NV", "S")}, "days": days}
+    # like-for-like national level: all arrivals at model nodes of trains the model simulates
+    on = obs[obs.cat.isin(["FV", "NV", "S"])]
+    obs_nodes = on.assign(ok=on.obs_stops * on.obs_punct).groupby("cat").ok.sum() / on.groupby("cat").obs_stops.sum()
+    sn = sim.assign(ok=sim.sim_stops * sim.sim_punct)
+    sim_nodes = sn.groupby("cat").ok.sum() / sn.groupby("cat").sim_stops.sum()
+    summary = {"national_sim": {k: float(sim_nodes[k]) for k in ("FV", "NV", "S")},
+               "national_obs": {k: float(obs_nodes[k]) for k in ("FV", "NV", "S")},
+               "db_national_all_trains": {k: float(obs_nat[k]) for k in ("FV", "NV", "S")}, "days": days}
     for cat in ("FV", "NV"):
         g = m[m.cat == cat]
         summary[f"nodes_{cat}"] = {"n": int(len(g)), "corr": float(np.corrcoef(g.sim_punct, g.obs_punct)[0, 1]),

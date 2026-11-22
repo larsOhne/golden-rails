@@ -35,15 +35,26 @@ MIN_TRAINS = 300
 
 
 def detect():
+    net = load_network()
     lc = leg_counts(YEAR)
     lc = lc[lc.cat.isin(["FV", "NV", "S"])]
-    lc["a"] = np.where(lc.node < lc.next_node, lc.node, lc.next_node)
-    lc["b"] = np.where(lc.node < lc.next_node, lc.next_node, lc.node)
-    m = lc.groupby(["a", "b", "month"]).trains.sum().unstack("month").reindex(columns=YEAR).fillna(0)
-    med = m.median(axis=1)
+    # only legs between directly connected nodes (one corridor): a drop there is not a stop-pattern change
+    direct = {(s.a, s.b) for s in net.segments.values()} | {(s.b, s.a) for s in net.segments.values()}
+    lc = lc[[(a, b) in direct for a, b in zip(lc.node, lc.next_node)]]
+    m = lc.groupby(["node", "next_node", "month"]).trains.sum().unstack("month").reindex(columns=YEAR).fillna(0)
+    med = m.quantile(0.75, axis=1)      # normal level, robust to closures of up to half a year
     m = m[med >= MIN_TRAINS]
-    closed = m.lt(CLOSED_SHARE * med[m.index], axis=0)
-    net = load_network()
+    closed_dir = m.lt(CLOSED_SHARE * med[m.index], axis=0)
+    # both directions must be closed in the same month
+    rows_ = {}
+    for (a, b), row in closed_dir.iterrows():
+        if (b, a) in closed_dir.index:
+            key = (min(a, b), max(a, b))
+            both = row & closed_dir.loc[(b, a)]
+            rows_[key] = both
+    closed = pd.DataFrame(rows_).T if rows_ else pd.DataFrame(columns=YEAR)
+    med = pd.Series({k: med[k] if k in med.index else med[(k[1], k[0])] for k in closed.index})
+    m = pd.DataFrame({k: (m.loc[k] if k in m.index else m.loc[(k[1], k[0])]) for k in closed.index}).T
     rows = []
     for (a, b), row in closed.iterrows():
         months = [mo for mo in YEAR if row[mo]]
