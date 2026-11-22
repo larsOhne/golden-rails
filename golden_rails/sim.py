@@ -552,6 +552,7 @@ class Train:
     plan_ch: list = field(default_factory=list)
     plan_nodes: list = field(default_factory=list)   # planned node occupations (key, ch idx, t, r)
     plan_dep0: float = -math.inf           # planned departure from the origin node (after platform/throat)
+    plan_leave: dict = field(default_factory=dict)   # step index -> planned start of the exit route
     hold: dict = field(default_factory=dict)   # node -> earliest scheduled departure (GTFS)
     line: str = ""
     agency: str = ""
@@ -756,6 +757,7 @@ def plan_timetable(net: Network, trains: list[Train], base: dict | None = None) 
                 tr.plan_ch.append(infra.blocks[(sid, bi)].index(ch))
             tr.plan_nodes = list(b.plan_nodes)
             tr.plan_dep0 = b.plan_dep0
+            tr.plan_leave = dict(b.plan_leave)
             for key, ci, t0, r in tr.plan_nodes:
                 chans = infra.blocks[key]
                 chans[min(ci, len(chans) - 1)].book(t0, r, 0)
@@ -779,7 +781,12 @@ def plan_timetable(net: Network, trains: list[Train], base: dict | None = None) 
     for tr in order:
         supp = 1.0 + SUPPLEMENT[tr.ttype]
         t = tr.desired_dep
+        if tr.pred is not None and tr.pred_kind == "turn":     # vehicle circulation: minimum turnaround
+            p = trains[tr.pred]
+            if p.plan_arr:
+                t = max(t, p.plan_arr[-1] + fleet.MIN_TURN[tr.ttype])
         tr.plan_entry, tr.plan_arr, tr.plan_ch, tr.plan_nodes = [], [], [], []
+        tr.plan_leave = {}
         slow = tr.ttype != "FV"
         o = tr.stops[0]
         if tr.ttype != "GV" and o in net.node_cap:
@@ -815,6 +822,7 @@ def plan_timetable(net: Network, trains: list[Train], base: dict | None = None) 
                     if node:
                         t, bk = infra.node_leave(node, t, tau)
                         rec(tr, bk)
+                        tr.plan_leave[i] = t
             else:
                 if node:
                     t2, bk = infra.node_pass(node, t, infra.tau(node, tr.equipped))
@@ -889,7 +897,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
         _, steps, pe, _, pc = state[idx]
         sid, bi, d, r, *_ = steps[i]
         incoming.setdefault((sid, bi), {})[idx] = (max(ready, pe[i]), r, d, PRIORITY[tr.ttype], pc[i],
-                                                   infra.h(sid, tr.equipped))
+                                                   infra.h(sid, tr.equipped), pe[i])
 
     # vehicle circulation state
     succ_of = {}
@@ -1093,8 +1101,11 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
             inc = incoming.get(key)
             if inc:
                 inc.pop(idx, None)
-                for gidx, (gt, gr, gd, gp, gpc, gh) in inc.items():
-                    if gp < prio and ready - 1e-9 <= gt <= ready + LOOKAHEAD:
+                my_plan = plan_entry[i]
+                for gidx, (gt, gr, gd, gp, gpc, gh, gplan) in inc.items():
+                    # higher priority, or same priority and planned ahead (dispatcher keeps the planned order)
+                    ahead = gp < prio or (gp == prio and gplan < my_plan - 1e-9 and my_plan > -math.inf)
+                    if ahead and ready - 1e-9 <= gt <= ready + LOOKAHEAD:
                         gch = infra.channel_for(key, gd, gt, gpc)
                         gch.book(gt, gr, gd, gh)
                         ghosts.append((gch, gt, gr, gd))
@@ -1232,7 +1243,9 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
             nxt = tx + dwell
             if node:
                 hold = (tr.hold.get(end_node) if tr.hold else None) or -math.inf
-                t_out, _ = infra.node_leave(node, max(nxt, hold), infra.tau(node, eq), prefs(idx))
+                # no exit before the planned exit route (as no block entry before the plan)
+                t_out, _ = infra.node_leave(node, max(nxt, hold, tr.plan_leave.get(i, -math.inf)),
+                                            infra.tau(node, eq), prefs(idx))
                 nxt = t_out
         elif node:
             t_req = max(tx, plan_arr[i]) if plan_arr[i] < math.inf else tx

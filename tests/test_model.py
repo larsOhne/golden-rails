@@ -11,6 +11,8 @@ def _quiet():
     dm.rate_full_closure = 0
     dm.rate_track_fault = 0
     dm.seg_extra = {}
+    dm.seg_extra_reg = {}
+    dm.node_approach = {}
     dm.p_fail_pre = {"FV": 0, "NV": 0, "S": 0}
     dm.fail_per_km = {"FV": 0, "NV": 0, "S": 0}
     return dm
@@ -29,7 +31,7 @@ def test_no_disruption_means_no_delay():
     plan_timetable(net, trains)
     r = simulate_day(net, trains, _quiet(), seed=1)
     # node bookings are made in a different order than in planning: tiny residual conflicts remain
-    assert r["delay_min"] / len(trains) < 0.1
+    assert r["delay_min"] / len(trains) < 0.01
 
 
 def test_fixed_timetable_kept_for_track_upgrades():
@@ -103,8 +105,10 @@ def test_etcs_reduces_delay():
     base = load_network()
     bt = build_trains(base)
     plan_timetable(base, bt)
+    groups = sorted({t.group for t in bt if any(st[0] == "N-WÜ" for st in t.steps)})
     net = load_network()
-    net.apply_changes("etcs:N-WÜ")
+    # ETCS on the corridor plus retrofit of every fleet group running there (no mixed traffic)
+    net.apply_changes(";".join(["etcs:N-WÜ"] + [f"fit:{g}" for g in groups]))
     trains = build_trains(net)
     plan_timetable(net, trains, {t.id: t for t in bt})
     dm = DisruptionModel()
