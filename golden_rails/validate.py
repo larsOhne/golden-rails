@@ -166,20 +166,26 @@ def calibrate_tau(params, procs, days=10, grid=(1.0, 1.5, 2.0, 2.5, 3.0)):
 
 def calibrate_ops(params, procs, days=24, iterations=4):
     """Entry-delay share of trains with a predecessor, and vehicle failure rates."""
-    t_entry = obs_entry_share()
+    # trains whose vehicle comes from a modelled turnaround: exogenous start delay calibrated on the
+    # observed departures after an on-time arrival (turnaround.csv, inbound delay 0-5 min, >= 6 min late)
+    ot = pd.read_csv(OBS / "turnaround.csv")
+    t_turn = {r.cat: float(r.p_dep_ge6) for r in ot[ot.arr_bin == "0-5"].itertuples()}
     t_canc = obs_cancel_targets()
     for it in range(iterations):
         out = simulate(days, procs, params, seed0=12000 + 100 * it)
-        se = start_share(out)
+        tt = turn_table(out)
+        st = {r.cat: r.sim_p_dep_ge6 for r in tt[tt.arr_bin == "0-5"].itertuples()}
         cs = cancel_shares(out)
+        se = {c: st.get(c, 0.0) for c in ("FV", "NV", "S")}
+        t_entry = t_turn
         for c in ("FV", "NV", "S"):
             params["p_pred_scale"][c] = float(np.clip(
-                params["p_pred_scale"][c] * (t_entry[c] / max(se.get(c, 1e-6), 1e-6)) ** 1.5, 0.0, 3.0))
+                params["p_pred_scale"][c] * (t_turn[c] / max(st.get(c, 1e-6), 1e-6)), 0.0, 3.0))
             params["p_fail_pre"][c] = float(np.clip(
                 params["p_fail_pre"][c] * (t_canc[c][0] / max(cs[c][0], 1e-6)) ** 0.7, 0.0, 0.2))
             params["fail_per_km"][c] = float(np.clip(
                 params["fail_per_km"][c] * (t_canc[c][1] / max(cs[c][1], 1e-6)) ** 0.7, 0.0, 1e-2))
-        print(f"ops iteration {it + 1}: entry share sim/obs "
+        print(f"ops iteration {it + 1}: turnaround dep>=6 after on-time arrival sim/obs "
               + ", ".join(f"{c} {se.get(c, 0):.2f}/{t_entry[c]:.2f}" for c in ("FV", "NV", "S"))
               + "; cancellations full/tail sim vs obs "
               + ", ".join(f"{c} {cs[c][0] * 100:.2f}/{t_canc[c][0] * 100:.2f} {cs[c][1] * 100:.2f}/{t_canc[c][1] * 100:.2f}"
