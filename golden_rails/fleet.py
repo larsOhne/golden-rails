@@ -95,7 +95,7 @@ def build_circulations(trains):
     # 1. pieces of the same GTFS trip
     pieces = defaultdict(list)
     for i, tr in enumerate(trains):
-        m = re.match(r"^(fv|rv)-(.+)-(\d+)$", tr.id)
+        m = re.match(r"^(fv|rv|db)-(.+)-(\d+)$", tr.id)
         if m:
             pieces[(m.group(1), m.group(2))].append((int(m.group(3)), i))
     for lst in pieces.values():

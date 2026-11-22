@@ -3,210 +3,122 @@
   "events": [
     {
       "event": "E1",
-      "name": "Bebra\u2013Eisenach, Duisburg\u2013D\u00fcsseldorf, Essen\u2013Duisburg, Eisenach\u2013Erfurt, Fulda\u2013Bebra, Gelnhausen\u2013Fulda, Halle (Saale)\u2013Lutherstadt Wittenberg, Hanau\u2013Frankfurt, Hanau\u2013Gelnhausen, Leipzig\u2013Lutherstadt Wittenberg, Lutherstadt Wittenberg\u2013Berlin",
+      "name": "Halle (Saale)\u2013Lutherstadt Wittenberg, Leipzig\u2013Lutherstadt Wittenberg, Lutherstadt Wittenberg\u2013Berlin",
       "months": "2025-11",
-      "n": 122,
-      "corr": 0.12242219394795358,
-      "corr_near": 0.23694130085280862
+      "n": 127,
+      "corr": -0.018603369470528004,
+      "corr_near": -0.33925940432524787
     },
     {
       "event": "E2",
-      "name": "Berlin\u2013Magdeburg, Magdeburg\u2013Braunschweig, Wolfsburg\u2013Braunschweig",
-      "months": "2025-11 2025-12 2026-01 2026-10",
-      "n": 131,
-      "corr": -0.012610592460301622,
-      "corr_near": -0.17343126509302692
-    },
-    {
-      "event": "E3",
-      "name": "Hamburg-Harburg\u2013Maschen, Hamburg-Harburg\u2013Rotenburg (W\u00fcmme), L\u00fcneburg\u2013Uelzen, Maschen\u2013L\u00fcneburg, Rotenburg (W\u00fcmme)\u2013Bremen",
-      "months": "2025-11 2025-12 2026-05 2026-06",
-      "n": 129,
-      "corr": 0.0026989498889443955,
-      "corr_near": 0.011737612868237223
-    },
-    {
-      "event": "E4",
-      "name": "Bebra\u2013Eisenach, Erfurt\u2013Halle (Saale) (NBS), Eisenach\u2013Erfurt, Fulda\u2013Bebra, Fulda\u2013Kassel (NBS)",
-      "months": "2025-11 2026-02 2026-08 2026-09 2026-10",
-      "n": 129,
-      "corr": -0.047982253042763906,
-      "corr_near": 0.5685843771398794
-    },
-    {
-      "event": "E5",
-      "name": "Hamburg-Harburg\u2013Maschen, Hamburg\u2013Hamburg-Harburg, L\u00fcneburg\u2013Uelzen, Maschen\u2013L\u00fcneburg, Uelzen\u2013Celle",
-      "months": "2025-11 2026-05 2026-06",
-      "n": 126,
-      "corr": 0.05383374884546733,
-      "corr_near": 0.8227569147434032
-    },
-    {
-      "event": "E6",
-      "name": "Mainz\u2013Darmstadt, Wiesbaden/Mainz-Kastel\u2013Mainz",
-      "months": "2025-11 2026-07 2026-08 2026-09 2026-10",
-      "n": 131,
-      "corr": -0.04325316196342737,
-      "corr_near": -0.0274062957065651
-    },
-    {
-      "event": "E7",
-      "name": "Erfurt\u2013Leipzig, Halle (Saale)\u2013Leipzig, Magdeburg\u2013Halle (Saale)",
-      "months": "2025-11 2026-08 2026-09 2026-10",
-      "n": 131,
-      "corr": -0.2815346391573346,
-      "corr_near": -0.2946212047920905
-    },
-    {
-      "event": "E8",
       "name": "Ulm\u2013Ingolstadt",
       "months": "2025-11 2026-09",
       "n": 131,
-      "corr": 0.0026328143093870783,
-      "corr_near": -0.7129057775902188
+      "corr": 0.009616422304963183,
+      "corr_near": -0.759620035233898
     },
     {
-      "event": "E9",
+      "event": "E3",
+      "name": "Oberhausen\u2013Emmerich",
+      "months": "2026-01",
+      "n": 128,
+      "corr": 0.3126817950385365,
+      "corr_near": null
+    },
+    {
+      "event": "E4",
       "name": "Mainz\u2013Darmstadt",
       "months": "2026-01 2026-04",
       "n": 129,
-      "corr": 0.0740278519127951,
-      "corr_near": 0.7804790847259415
+      "corr": 0.04740301214224142,
+      "corr_near": 0.7590895697446016
     },
     {
-      "event": "E10",
-      "name": "Hanau\u2013Frankfurt, Karlsruhe\u2013Stuttgart, Mannheim\u2013Karlsruhe, Frankfurt Stadion\u2013Frankfurt, Frankfurt Stadion\u2013Mannheim, W\u00fcrzburg\u2013Hanau",
-      "months": "2026-01 2026-08",
-      "n": 131,
-      "corr": -0.12537682732230046,
-      "corr_near": 0.2262802403140873
-    },
-    {
-      "event": "E11",
-      "name": "D\u00fcsseldorf\u2013K\u00f6ln, Duisburg\u2013D\u00fcsseldorf, K\u00f6ln\u2013Aachen",
+      "event": "E5",
+      "name": "D\u00fcsseldorf\u2013K\u00f6ln, K\u00f6ln\u2013Aachen",
       "months": "2026-02",
-      "n": 126,
-      "corr": 0.02818474493431222,
-      "corr_near": -0.5236845302250585
+      "n": 128,
+      "corr": 0.04756034313249406,
+      "corr_near": -0.24794886258595114
     },
     {
-      "event": "E12",
+      "event": "E6",
       "name": "Wuppertal\u2013K\u00f6ln",
-      "months": "2026-03 2026-04 2026-05 2026-06",
-      "n": 130,
-      "corr": -0.14005242365335394,
-      "corr_near": null
+      "months": "2026-02 2026-03 2026-04 2026-05 2026-06",
+      "n": 131,
+      "corr": -0.17802382372234984,
+      "corr_near": 0.20004884195771597
     },
     {
-      "event": "E13",
+      "event": "E7",
+      "name": "Berlin\u2013Magdeburg",
+      "months": "2026-02 2026-07 2026-08 2026-09",
+      "n": 131,
+      "corr": -0.016813565483779245,
+      "corr_near": -0.8229864832582768
+    },
+    {
+      "event": "E8",
       "name": "Dortmund\u2013Wuppertal",
       "months": "2026-03 2026-06",
       "n": 130,
-      "corr": -0.18673551558853607,
+      "corr": -0.13751923715139297,
       "corr_near": null
     },
     {
-      "event": "E14",
-      "name": "Hildesheim\u2013Braunschweig, Hildesheim\u2013Hannover, Mainz\u2013Frankfurt Flughafen",
+      "event": "E9",
+      "name": "Mainz\u2013Frankfurt Flughafen",
       "months": "2026-04",
       "n": 128,
-      "corr": 0.2721916488361215,
-      "corr_near": 0.46440732818737646
+      "corr": 0.21035587025213712,
+      "corr_near": 0.34203423208337635
     },
     {
-      "event": "E15",
-      "name": "Dortmund\u2013Wuppertal, Hamm\u2013Dortmund",
-      "months": "2026-04 2026-05 2026-06",
-      "n": 130,
-      "corr": -0.20251695356521127,
-      "corr_near": -0.2545184495308967
-    },
-    {
-      "event": "E16",
-      "name": "Celle\u2013Hannover, Bremen\u2013Verden, L\u00fcneburg\u2013Uelzen, Maschen\u2013L\u00fcneburg, Rotenburg (W\u00fcmme)\u2013Verden, Uelzen\u2013Celle, Verden\u2013Hannover",
+      "event": "E10",
+      "name": "Maschen\u2013L\u00fcneburg, Rotenburg (W\u00fcmme)\u2013Verden, Uelzen\u2013Celle",
       "months": "2026-05 2026-06",
-      "n": 122,
-      "corr": 0.04828433207377547,
-      "corr_near": -0.8625046169365395
-    },
-    {
-      "event": "E17",
-      "name": "Bielefeld\u2013Hamm, G\u00f6ttingen\u2013Hannover (NBS), Hannover\u2013Minden, Kassel\u2013G\u00f6ttingen (NBS), Minden\u2013Bielefeld",
-      "months": "2026-06",
-      "n": 124,
-      "corr": 0.1670838265537828,
-      "corr_near": 0.6557618626277428
-    },
-    {
-      "event": "E18",
-      "name": "Halle (Saale)\u2013Leipzig, Magdeburg\u2013Halle (Saale)",
-      "months": "2026-06 2026-07 2026-08",
-      "n": 131,
-      "corr": 0.24895003090987403,
-      "corr_near": 0.5649076649310133
-    },
-    {
-      "event": "E19",
-      "name": "Hamburg-Harburg\u2013Maschen, Hamburg\u2013Hamburg-Harburg, Hildesheim\u2013Lehrte, K\u00f6ln\u2013Aachen, Maschen\u2013L\u00fcneburg",
-      "months": "2026-07",
-      "n": 130,
-      "corr": -0.15495734906381697,
-      "corr_near": 0.16472674832926185
-    },
-    {
-      "event": "E20",
-      "name": "Berlin\u2013Magdeburg",
-      "months": "2026-07 2026-08 2026-09",
-      "n": 131,
-      "corr": 0.06726467120680112,
-      "corr_near": -0.9315840282896114
-    },
-    {
-      "event": "E21",
-      "name": "Regensburg\u2013M\u00fcnchen, Regensburg\u2013Passau",
-      "months": "2026-07 2026-08 2026-09 2026-10",
-      "n": 131,
-      "corr": -0.14170944168032007,
+      "n": 123,
+      "corr": 0.10786797805652734,
       "corr_near": null
     },
     {
-      "event": "E22",
-      "name": "Augsburg\u2013M\u00fcnchen, Bonn\u2013Koblenz, K\u00f6ln\u2013Bonn, Koblenz\u2013Mainz, M\u00fcnchen\u2013Ingolstadt, Wiesbaden/Mainz-Kastel\u2013Mainz",
-      "months": "2026-08 2026-09 2026-10",
-      "n": 127,
-      "corr": -0.08639948317343286,
-      "corr_near": 0.06601784665582847
+      "event": "E11",
+      "name": "L\u00fcneburg\u2013Uelzen",
+      "months": "2026-06",
+      "n": 128,
+      "corr": 0.04335460397487743,
+      "corr_near": -0.7733921971842552
     },
     {
-      "event": "E23",
-      "name": "Bebra\u2013Eisenach, Duisburg\u2013Oberhausen, Essen\u2013Duisburg, Eisenach\u2013Erfurt, Fulda\u2013Bebra, Gelnhausen\u2013Fulda, Hanau\u2013Gelnhausen, W\u00fcrzburg\u2013Hanau",
-      "months": "2026-09",
-      "n": 126,
-      "corr": 0.13713981694706193,
-      "corr_near": 0.003966756451420914
+      "event": "E12",
+      "name": "Hildesheim\u2013Lehrte, K\u00f6ln\u2013Aachen",
+      "months": "2026-07",
+      "n": 130,
+      "corr": 0.07079474035043279,
+      "corr_near": 0.7664218153288008
     },
     {
-      "event": "E24",
+      "event": "E13",
       "name": "Essen\u2013Duisburg",
       "months": "2026-09 2026-10",
       "n": 131,
-      "corr": -0.0343360577226326,
-      "corr_near": -0.21175043119691764
+      "corr": 0.27937200021626,
+      "corr_near": -0.3557678715876823
     },
     {
-      "event": "E25",
-      "name": "Berlin\u2013Magdeburg, Berlin\u2013Berlin-Spandau, Hildesheim\u2013Braunschweig, Hildesheim\u2013Hannover, Lehrte\u2013Hannover, Magdeburg\u2013Braunschweig, Stendal\u2013Magdeburg, Berlin-Spandau\u2013Stendal, Wolfsburg\u2013Braunschweig, Wolfsburg\u2013Lehrte",
+      "event": "E14",
+      "name": "Magdeburg\u2013Braunschweig, Stendal\u2013Magdeburg, Berlin-Spandau\u2013Stendal, Wolfsburg\u2013Braunschweig",
       "months": "2026-10",
-      "n": 127,
-      "corr": -0.0007526054898402758,
-      "corr_near": 0.36317729420291794
+      "n": 130,
+      "corr": 0.021009977258709688,
+      "corr_near": -0.5157624846973576
     }
   ],
-  "pooled_corr_all": -0.0067677009703984705,
-  "pooled_corr_near": 0.05494148204229384,
-  "pooled_corr_simulated_effect_ge_1pp": -0.007664031907125876,
-  "sign_agreement_simulated_effect_ge_1pp": 0.4837340876944837,
-  "n_pairs": 3214,
-  "n_near": 182,
-  "n_big": 2121
+  "pooled_corr_all": 0.04688604188366436,
+  "pooled_corr_near": 0.18408040497161776,
+  "pooled_corr_simulated_effect_ge_1pp": 0.0666774044564155,
+  "sign_agreement_simulated_effect_ge_1pp": 0.4868421052631579,
+  "n_pairs": 1805,
+  "n_near": 59,
+  "n_big": 912
 }

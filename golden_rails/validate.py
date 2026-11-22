@@ -42,9 +42,18 @@ RES = ROOT / "results"
 ALPHA_VEHICLE = 0.4      # share of all cancellations attributed to vehicle failures (assumption)
 SEG_EXTRA_SHRINK = 0.6
 MAX_SPEEDUP = 0.15
-TAU_FIXED = 1.5          # min route occupation per movement in a station throat       # negative corridor correction: at most 15% faster than modelled
+TAU_FIXED = 1.5          # min route occupation per movement in a station throat
 
 _NET = _TR = _DM = None
+_MONTHS: dict = {}
+
+
+def obs_months(obs_dir) -> list | None:
+    """Months of an observed set whose monthly timetables exist (None: use the GTFS timetable)."""
+    meta = json.loads((Path(obs_dir) / "meta.json").read_text())
+    months = meta.get("months") or [meta.get("month")]
+    months = [m for m in months if m and S.month_timetable(m)[0].exists()]
+    return months or None
 
 
 def _init(params):
@@ -52,9 +61,20 @@ def _init(params):
     params = params or {}
     if "tau" in params:
         S.TAU = params["tau"]
-    _NET = load_network()
-    _TR = build_trains(_NET)
-    plan_timetable(_NET, _TR)
+    _MONTHS.clear()
+    if params.get("months"):
+        for m in params["months"]:
+            tt, bg = S.month_timetable(m)
+            net = load_network()
+            net.bg_file = str(bg)
+            trains = build_trains(net, tt_file=tt)
+            plan_timetable(net, trains)
+            _MONTHS[m] = (net, trains)
+    else:
+        _NET = load_network()
+        _TR = build_trains(_NET)
+        plan_timetable(_NET, _TR)
+        _MONTHS[None] = (_NET, _TR)
     _DM = DisruptionModel()
     if params.get("factors") is not None:
         _DM.node_factor = dict(params["factors"])
@@ -72,14 +92,23 @@ KEEP = ("punct_FV", "punct_NV", "punct_S", "punct_GV", "pax_punct", "node_stats"
         "cancel_share_S")
 
 
-def _day(seed):
-    r = simulate_day(_NET, _TR, _DM, seed)
-    return {k: r[k] for k in KEEP}
+def _day(task):
+    month, seed = task
+    net, trains = _MONTHS[month]
+    r = simulate_day(net, trains, _DM, seed)
+    out = {k: r[k] for k in KEEP}
+    out["month"] = month
+    return out
 
 
 def simulate(days, procs, params=None, seed0=5000):
+    """``days`` simulated days in total; with params['months'] they are spread over the monthly
+    timetables (equal number per month)."""
+    months = (params or {}).get("months") or [None]
+    per = max(1, round(days / len(months)))
+    tasks = [(m, seed0 + k) for k in range(per) for m in months]
     with Pool(procs, initializer=_init, initargs=(params,)) as pool:
-        return pool.map(_day, range(seed0, seed0 + days))
+        return pool.map(_day, tasks, chunksize=max(1, len(tasks) // (procs * 4)))
 
 
 # ---------------------------------------------------------------- aggregation
@@ -262,7 +291,7 @@ def calibrate_nodes(params, procs, iterations=8, days=16, gain=25.0, obs_dir=OBS
     approach = {(r.node, r.cat): float(prev.get((r.node, r.cat), 0.0)) for r in obs.itertuples()}
     for it in range(iterations):
         out = simulate(days, procs, {**params, "approach": approach, "factors": {}}, seed0=7000 + 100 * it)
-        sim = node_table(out, days)
+        sim = node_table(out, len(out))
         m = sim.merge(obs, on=["node", "cat"])
         m = m[m.sim_stops >= 5]
         err = []
@@ -282,7 +311,9 @@ def calibrate(procs=4):
     dm = DisruptionModel()
     params = {"tau": S.TAU, "factors": {}, "seg_extra": {}, "approach": {},
               "p_pred_scale": dict(dm.p_pred_scale), "p_fail_pre": dict(dm.p_fail_pre),
-              "fail_per_km": dict(dm.fail_per_km), "turn_recovery": dict(dm.turn_recovery)}
+              "fail_per_km": dict(dm.fail_per_km), "turn_recovery": dict(dm.turn_recovery),
+              "months": obs_months(OBS)}
+    print("calibration months:", params["months"], flush=True)
     # TAU is not identifiable from the data (node dwell-gain error flat between 1 and 3 min, see README);
     # it is fixed at a physically plausible 1.5 min route occupation
     params["tau"] = TAU_FIXED
@@ -303,7 +334,7 @@ def recalibrate_nodes_ops(procs=4):
     dm = DisruptionModel()
     params = {"tau": S.TAU, "seg_extra": dict(dm.seg_extra), "p_pred_scale": dict(dm.p_pred_scale),
               "p_fail_pre": dict(dm.p_fail_pre), "fail_per_km": dict(dm.fail_per_km),
-              "turn_recovery": dict(dm.turn_recovery)}
+              "turn_recovery": dict(dm.turn_recovery), "months": obs_months(OBS)}
     params = calibrate_nodes(params, procs, iterations=10)
     params = calibrate_ops(params, procs, iterations=2)
     write_ops(params)
@@ -314,7 +345,8 @@ def recalibrate_ops(procs=4, iterations=4):
     """Re-run only the entry/failure calibration on top of the stored corridor and node calibration."""
     dm = DisruptionModel()
     params = {"tau": S.TAU, "p_pred_scale": dict(dm.p_pred_scale), "p_fail_pre": dict(dm.p_fail_pre),
-              "fail_per_km": dict(dm.fail_per_km), "turn_recovery": dict(dm.turn_recovery)}
+              "fail_per_km": dict(dm.fail_per_km), "turn_recovery": dict(dm.turn_recovery),
+              "months": obs_months(OBS)}
     params = calibrate_ops(params, procs, iterations=iterations)
     write_ops(params)
     return params
@@ -322,9 +354,9 @@ def recalibrate_ops(procs=4, iterations=4):
 
 # ---------------------------------------------------------------- validation
 def run(days=30, procs=4, obs_dir=OBS, tag=""):
-    out = simulate(days, procs)
+    out = simulate(days, procs, {"months": obs_months(obs_dir)})
     nat = pd.DataFrame([{k: o[k] for k in ("punct_FV", "punct_NV", "punct_S", "pax_punct")} for o in out]).mean()
-    sim = node_table(out, days)
+    sim = node_table(out, len(out))
     obs = pd.read_csv(obs_dir / "punctuality_by_node.csv").rename(
         columns={"punct_lt6": "obs_punct", "mean_delay": "obs_mean_delay", "stops": "obs_stops"})
     m = sim.merge(obs, on=["node", "cat"], how="inner")
@@ -375,6 +407,48 @@ def run(days=30, procs=4, obs_dir=OBS, tag=""):
     return summary
 
 
+def monthly_test(days_per_month=20, procs=4):
+    """Structural test over the year: does the model reproduce *which stations get worse in which
+    month* (timetable changes, closures, detours)? Station punctuality per month, simulated with
+    that month's timetable, is compared with the observed one after removing station means and
+    month means (two-way demeaning: removes persistent station differences and weather/season)."""
+    from .observed_agg import YEAR, month_dir
+    months = [m for m in YEAR if S.month_timetable(m)[0].exists()]
+    out = simulate(days_per_month * len(months), procs, {"months": months}, seed0=21000)
+    rows = []
+    for m in months:
+        om = [o for o in out if o["month"] == m]
+        sim = node_table(om, len(om))
+        obs = pd.read_csv(month_dir(m) / "punctuality_by_node.csv")
+        x = sim.merge(obs, on=["node", "cat"])
+        x = x[(x.stops >= 100) & (x.sim_stops >= 3) & x.cat.isin(["FV", "NV"])]
+        rows.append(x.assign(month=m))
+    d = pd.concat(rows, ignore_index=True)
+    res = {"months": months, "days_per_month": days_per_month}
+    for cat in ("FV", "NV"):
+        g = d[d.cat == cat].copy()
+        keep = g.groupby("node").month.transform("nunique") == len(months)
+        g = g[keep]
+        for col in ("sim_punct", "punct_lt6"):
+            g[col + "_dm"] = (g[col] - g.groupby("node")[col].transform("mean")
+                              - g.groupby("month")[col].transform("mean") + g[col].mean())
+        res[cat] = {"n_stations": int(g.node.nunique()), "n_cells": int(len(g)),
+                    "corr_within": float(np.corrcoef(g.sim_punct_dm, g.punct_lt6_dm)[0, 1]),
+                    "corr_levels": float(np.corrcoef(g.sim_punct, g.punct_lt6)[0, 1]),
+                    "sd_obs_within_pp": float(g.punct_lt6_dm.std() * 100),
+                    "sd_sim_within_pp": float(g.sim_punct_dm.std() * 100)}
+        big = g[g.punct_lt6_dm.abs() >= 0.05]
+        res[cat]["sign_agreement_big_obs_changes"] = float((np.sign(big.sim_punct_dm) == np.sign(big.punct_lt6_dm)).mean()) if len(big) else None
+        res[cat]["n_big_obs_changes"] = int(len(big))
+    nat = d.groupby(["month", "cat"]).apply(lambda g: pd.Series({
+        "sim": np.average(g.sim_punct, weights=g.sim_stops), "obs": np.average(g.punct_lt6, weights=g.stops)}),
+        include_groups=False).reset_index()
+    res["national_by_month"] = {f"{r.month} {r.cat}": [round(r.sim, 3), round(r.obs, 3)] for r in nat.itertuples()}
+    d.to_csv(RES / "validation_monthly.csv", index=False)
+    (RES / "validation_monthly.json").write_text(json.dumps(res, indent=2))
+    return res
+
+
 def plot(m, summary, path=RES / "validation.png"):
     from .plots import BLUE, GRID, INK, INK2, ORANGE, SURF
     net = load_network()
@@ -419,7 +493,11 @@ def main():
     ap.add_argument("--recalibrate-nodes", action="store_true", help="station factors, then entry/failure rates")
     ap.add_argument("--obs", default=str(OBS), help="observed data directory (e.g. data/observed_2026-09)")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--monthly", action="store_true", help="structural test over the 12 monthly timetables")
     a = ap.parse_args()
+    if a.monthly:
+        print(json.dumps(monthly_test(procs=a.procs), indent=2))
+        return
     if a.calibrate:
         calibrate(a.procs)
     if a.recalibrate_ops:

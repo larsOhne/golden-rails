@@ -102,6 +102,7 @@ class Network:
     node_cap: dict[str, NodeCap] = field(default_factory=dict)
     fitted: set = field(default_factory=set)          # fleet groups retro-fitted with ETCS
     reserves: dict = field(default_factory=dict)      # (node, group) -> hot reserve train sets
+    bg_file: str | None = None                        # background calls (single-node trains) of the timetable
 
     def __post_init__(self):
         self.rebuild()
@@ -114,7 +115,7 @@ class Network:
 
     def copy(self) -> "Network":
         return Network(self.nodes, copy.deepcopy(self.segments), node_cap=copy.deepcopy(self.node_cap),
-                       fitted=set(self.fitted), reserves=dict(self.reserves))
+                       fitted=set(self.fitted), reserves=dict(self.reserves), bg_file=self.bg_file)
 
     # ------------------------------------------------------------------
     def run_minutes(self, seg: Segment, ttype: str, train_vmax: float | None = None) -> float:

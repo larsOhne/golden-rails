@@ -37,6 +37,7 @@ import random
 import zlib
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -341,16 +342,22 @@ def _sample_entry_delay(dm, rng, node, cat):
     return rng.expovariate(1.0 / (dm.mean_origin.get(cat, 4.0) * dm.scale))
 
 
-_BACKGROUND = None
+_BACKGROUND: dict = {}
+TIMETABLES = DATA / "timetables"
 
 
-def node_background():
-    global _BACKGROUND
-    if _BACKGROUND is None:
-        f = DATA / "node_background.csv"
-        _BACKGROUND = pd.read_csv(f) if f.exists() else pd.DataFrame(
+def node_background(path=None):
+    path = str(path or DATA / "node_background.csv")
+    if path not in _BACKGROUND:
+        f = Path(path)
+        _BACKGROUND[path] = pd.read_csv(f) if f.exists() else pd.DataFrame(
             columns=["node", "category", "arr_min", "dep_min"])
-    return _BACKGROUND
+    return _BACKGROUND[path]
+
+
+def month_timetable(month: str):
+    """(timetable csv, background csv) of a monthly timetable built from the DB planned times."""
+    return TIMETABLES / f"tt_{month}.csv", TIMETABLES / f"bg_{month}.csv"
 
 
 class Infra:
@@ -379,7 +386,7 @@ class Infra:
     def _book_background(self, dm=None, seed=None):
         """Trains touching only one node occupy its platforms and throat. In operations (dm, seed given)
         they arrive with the observed delay of trains entering the model at that node."""
-        bg = node_background()
+        bg = node_background(self.net.bg_file)
         caps = self.net.node_cap
         for k, r in enumerate(bg[bg.node.isin(caps)].itertuples()):
             a, d = float(r.arr_min), float(r.dep_min)
@@ -587,11 +594,15 @@ TIMETABLE = os.environ.get("GR_TIMETABLE", "gtfs")   # "gtfs" (real timetable) o
 PAX_FV_LINE = {"ICE": 350.0, "ECE": 300.0, "RJ": 250.0, "RJX": 250.0}
 
 
-def build_trains(net: Network, data_dir=DATA, source: str | None = None, shifts: dict | None = None) -> list[Train]:
-    """Trains of the timetable. ``shifts`` (train id -> minutes) moves trains (timetable softening)."""
+def build_trains(net: Network, data_dir=DATA, source: str | None = None, shifts: dict | None = None,
+                 tt_file=None) -> list[Train]:
+    """Trains of the timetable. ``shifts`` (train id -> minutes) moves trains (timetable softening).
+    ``tt_file``: another timetable in the same format (e.g. a monthly timetable from the DB data)."""
     source = source or TIMETABLE
-    if source == "gtfs" and (data_dir / "timetable_gtfs.csv").exists():
-        trains = build_trains_gtfs(net, data_dir, shifts)
+    if tt_file is not None:
+        source = "gtfs"
+    if source == "gtfs" and (tt_file is not None or (data_dir / "timetable_gtfs.csv").exists()):
+        trains = build_trains_gtfs(net, data_dir, shifts, tt_file)
     else:
         trains = build_trains_curated(net, data_dir)
         for tr in trains:
@@ -623,7 +634,7 @@ def _freight(net: Network, data_dir, shifts=None) -> list[Train]:
     return trains
 
 
-def build_trains_gtfs(net: Network, data_dir=DATA, shifts: dict | None = None) -> list[Train]:
+def build_trains_gtfs(net: Network, data_dir=DATA, shifts: dict | None = None, tt_file=None) -> list[Train]:
     """Passenger trains from the real GTFS timetable (data/timetable_gtfs.csv) + curated freight.
 
     S-Bahn trips are kept only where S-Bahn shares main-line tracks (segments with s_tph > 0
@@ -632,7 +643,7 @@ def build_trains_gtfs(net: Network, data_dir=DATA, shifts: dict | None = None) -
     trains: list[Train] = []
     shifts = shifts or {}
     major = net.nodes["major"].to_dict()
-    tt = pd.read_csv(data_dir / "timetable_gtfs.csv", keep_default_na=False)
+    tt = pd.read_csv(tt_file or data_dir / "timetable_gtfs.csv", keep_default_na=False)
     info = {}
     for r in tt.itertuples():
         stops = r.stops.split()
