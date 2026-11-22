@@ -58,7 +58,7 @@ def _init(params):
         _DM.node_factor = dict(params["factors"])
     if params.get("seg_extra") is not None:
         _DM.seg_extra = dict(params["seg_extra"])
-    for k in ("p_pred_scale", "p_fail_pre", "fail_per_km"):
+    for k in ("p_pred_scale", "p_fail_pre", "fail_per_km", "turn_recovery"):
         if params.get(k) is not None:
             setattr(_DM, k, dict(params[k]))
 
@@ -148,8 +148,8 @@ def dwell_error(out, obs_dir=OBS):
 # ---------------------------------------------------------------- calibration steps
 def write_ops(params):
     rows = [{"param": "tau", "cat": "all", "value": params["tau"]}]
-    for k in ("p_pred_scale", "p_fail_pre", "fail_per_km"):
-        rows += [{"param": k, "cat": c, "value": v} for c, v in params[k].items()]
+    for k in ("p_pred_scale", "p_fail_pre", "fail_per_km", "turn_recovery"):
+        rows += [{"param": k, "cat": c, "value": v} for c, v in params.get(k, {}).items()]
     pd.DataFrame(rows).to_csv(S.OPS_CALIB, index=False)
 
 
@@ -178,6 +178,15 @@ def calibrate_ops(params, procs, days=24, iterations=4):
         cs = cancel_shares(out)
         se = {c: st.get(c, 0.0) for c in ("FV", "NV", "S")}
         t_entry = t_turn
+        ot_mid = ot[ot.arr_bin.isin(["5-10", "10-20", "20-40"])].set_index(["cat", "arr_bin"]).p_dep_ge6
+        tt_mid = tt[tt.arr_bin.isin(["5-10", "10-20", "20-40"])].set_index(["cat", "arr_bin"]).sim_p_dep_ge6
+        for c in ("FV", "NV", "S"):
+            try:
+                gap = float((tt_mid.loc[c] - ot_mid.loc[c]).mean())
+            except KeyError:
+                gap = 0.0
+            # more propagation than observed -> more recovery (about 10 min per 0.25 probability)
+            params["turn_recovery"][c] = float(np.clip(params["turn_recovery"][c] + 40.0 * gap, 0.0, 30.0))
         for c in ("FV", "NV", "S"):
             params["p_pred_scale"][c] = float(np.clip(
                 params["p_pred_scale"][c] * (t_turn[c] / max(st.get(c, 1e-6), 1e-6)), 0.0, 3.0))
@@ -187,6 +196,7 @@ def calibrate_ops(params, procs, days=24, iterations=4):
                 params["fail_per_km"][c] * (t_canc[c][1] / max(cs[c][1], 1e-6)) ** 0.7, 0.0, 1e-2))
         print(f"ops iteration {it + 1}: turnaround dep>=6 after on-time arrival sim/obs "
               + ", ".join(f"{c} {se.get(c, 0):.2f}/{t_entry[c]:.2f}" for c in ("FV", "NV", "S"))
+              + "; recovery " + ", ".join(f"{c} {params['turn_recovery'][c]:.1f}" for c in ("FV", "NV", "S"))
               + "; cancellations full/tail sim vs obs "
               + ", ".join(f"{c} {cs[c][0] * 100:.2f}/{t_canc[c][0] * 100:.2f} {cs[c][1] * 100:.2f}/{t_canc[c][1] * 100:.2f}"
                           for c in ("FV", "NV", "S")), flush=True)
@@ -265,8 +275,8 @@ def calibrate(procs=4):
     dm = DisruptionModel()
     params = {"tau": S.TAU, "factors": {}, "seg_extra": {},
               "p_pred_scale": dict(dm.p_pred_scale), "p_fail_pre": dict(dm.p_fail_pre),
-              "fail_per_km": dict(dm.fail_per_km)}
-    params = calibrate_tau(params, procs)
+              "fail_per_km": dict(dm.fail_per_km), "turn_recovery": dict(dm.turn_recovery)}
+    params = calibrate_tau(params, procs, grid=(1.5, 2.0, 3.0))
     params = calibrate_ops(params, procs)
     write_ops(params)
     params = calibrate_segments(params, procs)
@@ -281,7 +291,7 @@ def recalibrate_ops(procs=4, iterations=4):
     """Re-run only the entry/failure calibration on top of the stored corridor and node calibration."""
     dm = DisruptionModel()
     params = {"tau": S.TAU, "p_pred_scale": dict(dm.p_pred_scale), "p_fail_pre": dict(dm.p_fail_pre),
-              "fail_per_km": dict(dm.fail_per_km)}
+              "fail_per_km": dict(dm.fail_per_km), "turn_recovery": dict(dm.turn_recovery)}
     params = calibrate_ops(params, procs, iterations=iterations)
     write_ops(params)
     return params

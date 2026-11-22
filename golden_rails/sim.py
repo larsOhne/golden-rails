@@ -188,6 +188,8 @@ class DisruptionModel:
     # trains whose vehicle comes from a modelled predecessor get only this share of the observed
     # entry-delay probability (the rest is propagated through the circulation; calibrated)
     p_pred_scale: dict = field(default_factory=lambda: _ops("p_pred_scale", {"FV": 0.5, "NV": 0.5, "S": 0.5}))
+    # delay recovered in a turnaround beyond the planned buffer (quick turns, swaps; calibrated)
+    turn_recovery: dict = field(default_factory=lambda: _ops("turn_recovery", {"FV": 0.0, "NV": 0.0, "S": 0.0}))
     # dwell-time extensions at each scheduled stop
     p_dwell: dict = field(default_factory=lambda: {"FV": 0.30, "NV": 0.17, "S": 0.08})
     mean_dwell: dict = field(default_factory=lambda: {"FV": 3.0, "NV": 1.1, "S": 0.8})
@@ -956,7 +958,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
         ptr = trains[tr.pred]
         p_plan_arr = ptr.plan_arr[-1] if ptr.plan_arr else ptr.sched_arr
         buf = max(0.0, p0 - p_plan_arr - fleet.MIN_TURN[tr.ttype])
-        return p0 + max(0.0, p_dl - buf)
+        return p0 + max(0.0, p_dl - buf - dm.turn_recovery.get(tr.ttype, 0.0))
 
     while pq:
         t, idx, i = heapq.heappop(pq)
