@@ -36,7 +36,8 @@ from .network import load_network, place_name
 from .sim import DisruptionModel, build_trains, plan_timetable, simulate_day
 
 ROOT = Path(__file__).resolve().parent.parent
-OBS = ROOT / "data" / "observed"
+OBS = S.OBSERVED                       # calibration months (data/observed_cal)
+OBS_VAL = ROOT / "data" / "observed_val"   # validation months (out-of-sample)
 RES = ROOT / "results"
 ALPHA_VEHICLE = 0.4      # share of all cancellations attributed to vehicle failures (assumption)
 SEG_EXTRA_SHRINK = 0.6

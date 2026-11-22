@@ -125,20 +125,28 @@ def analyse(path: Path, out=OUT):
             .groupby(["cat", "d"]).size().rename("n").reset_index())
     hist.to_csv(out / "origin_delay_hist.csv", index=False)
 
-    # 3. per model node
+    # 3. per model node. Like the model, only runs that call at two or more model nodes count
+    #    ("model trips"); runs touching a single node are background traffic in the model.
     mapping = node_stations(df.station_name)
     inv = {v: k for k, v in mapping.items()}
+    df["node"] = df.station_name.map(inv)
+    n_nodes = df[df.node.notna()].groupby("trip").node.nunique()
+    model_trips = set(n_nodes[n_nodes >= 2].index)
     a = a.assign(node=a.station_name.map(inv))
     an = a[a.node.notna()]
-    per_node = an.groupby(["node", "cat"]).agg(
-        stops=("arr_delay", "size"), punct_lt6=("arr_delay", lambda x: (x.dropna() < 6).mean()),
-        mean_delay=("arr_delay", "mean")).reset_index()
-    per_node["station"] = per_node.node.map(mapping)
+
+    def node_punct(x):
+        g = x.groupby(["node", "cat"]).agg(
+            stops=("arr_delay", "size"), punct_lt6=("arr_delay", lambda v: (v.dropna() < 6).mean()),
+            mean_delay=("arr_delay", "mean")).reset_index()
+        g["station"] = g.node.map(mapping)
+        return g
+    per_node = node_punct(an[an.trip.isin(model_trips)])
     per_node.to_csv(out / "punctuality_by_node.csv", index=False)
+    node_punct(an).to_csv(out / "punctuality_by_node_all.csv", index=False)
 
     # 4. delay change between consecutive model nodes within the same ride
-    s = df.assign(node=df.station_name.map(inv))
-    s = s[s.node.notna()].sort_values(["trip", "train_line_station_num"])
+    s = df[df.node.notna()].sort_values(["trip", "train_line_station_num"])
     s["next_node"] = s.groupby("trip").node.shift(-1)
     s["next_arr_delay"] = s.groupby("trip").arr_delay.shift(-1)
     legs = s[s.next_node.notna() & (s.next_node != s.node) & s.dep_delay.notna() & s.next_arr_delay.notna()]
@@ -149,8 +157,8 @@ def analyse(path: Path, out=OUT):
         mean_dep_delay=("dep_delay", "mean")).reset_index()
     corr.to_csv(out / "delay_change_by_leg.csv", index=False)
 
-    # 5. delay when a train enters the model: departure delay at its first model node
-    entry = s[s.dep_delay.notna()].groupby("trip").head(1)
+    # 5. delay when a train enters the model: departure delay at its first model node (model trips)
+    entry = s[s.dep_delay.notna() & s.trip.isin(model_trips)].groupby("trip").head(1)
     e = entry.assign(d=entry.dep_delay.clip(lower=0))
     by_node = e.groupby(["node", "cat"]).agg(
         trains=("d", "size"), p_delayed_ge1=("d", lambda x: (x >= 1).mean()),
@@ -160,7 +168,7 @@ def analyse(path: Path, out=OUT):
      .to_csv(out / "entry_delay_hist.csv", index=False))
 
     # 5b. delay gained while standing in a model node (departure delay - arrival delay)
-    st = s[s.dep_delay.notna() & s.arr_delay.notna()]
+    st = s[s.dep_delay.notna() & s.arr_delay.notna() & s.trip.isin(model_trips)]
     st.assign(dwell_gain=st.dep_delay - st.arr_delay).groupby(["node", "cat"]).agg(
         stops=("dwell_gain", "size"), mean_dwell_gain=("dwell_gain", "mean")).reset_index().to_csv(
         out / "node_dwell_gain.csv", index=False)

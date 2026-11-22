@@ -96,7 +96,9 @@ def hm(s: str) -> float:
 # ----------------------------------------------------------------------------
 # Disruption parameters ("standard disruptions")
 # ----------------------------------------------------------------------------
-OBSERVED = DATA / "observed"
+OBSERVED = DATA / os.environ.get("GR_OBS", "observed_cal")
+if not OBSERVED.exists():
+    OBSERVED = DATA / "observed"
 
 
 def _empirical_origin() -> dict:
@@ -309,6 +311,20 @@ class Channel:
         raise KeyError("occupation not found")
 
 
+def _sample_entry_delay(dm, rng, node, cat):
+    """Delay of a train entering the model at ``node`` (observed distribution, node-scaled)."""
+    en = dm.entry_node.get((node, cat))
+    p0 = dm.p_origin.get(cat, 0.0)
+    p_in = p0 * en[0] / dm._p_obs.get(cat, p0) if en and p0 > 0 else p0
+    if rng.random() >= min(p_in, 0.99):
+        return 0.0
+    emp = dm.origin_empirical.get(cat)
+    if emp:
+        mag = en[1] / dm._mean_obs[cat] if en and cat in dm._mean_obs else 1.0
+        return rng.choices(emp[0], weights=emp[1])[0] * dm.scale * mag
+    return rng.expovariate(1.0 / (dm.mean_origin.get(cat, 4.0) * dm.scale))
+
+
 _BACKGROUND = None
 
 
@@ -324,7 +340,7 @@ def node_background():
 class Infra:
     """Block/channel state (corridors and major nodes) for one planning or simulation run."""
 
-    def __init__(self, net: Network, plan: bool = False):
+    def __init__(self, net: Network, plan: bool = False, dm=None, seed=None):
         self.net = net
         self.plan = plan
         self.blocks: dict[tuple[str, int], list[Channel]] = {}
@@ -339,19 +355,23 @@ class Infra:
             self.blocks[("@P:" + n, 0)] = [Channel(0, True) for _ in range(cap.platforms)]
             self.blocks[("@T:" + n, 0)] = [Channel(0, True) for _ in range(cap.groups)]
         self.full_closures: dict[str, list[tuple[float, float]]] = {}
-        self._book_background()
+        self._book_background(dm, seed)
 
     def h(self, sid: str, equipped: bool) -> float:
         return self.hpair[sid][1 if equipped else 0]
 
-    def _book_background(self):
+    def _book_background(self, dm=None, seed=None):
+        """Trains touching only one node occupy its platforms and throat. In operations (dm, seed given)
+        they arrive with the observed delay of trains entering the model at that node."""
         bg = node_background()
         caps = self.net.node_cap
-        for r in bg[bg.node.isin(caps)].itertuples():
+        for k, r in enumerate(bg[bg.node.isin(caps)].itertuples()):
             a, d = float(r.arr_min), float(r.dep_min)
             occ = max(d - a, 0.0)
             if occ < 2.0:   # first/last call: platform used for preparation / turning
                 a, occ = a - PLATFORM_PREP.get(r.category, 6.0) / 2, PLATFORM_PREP.get(r.category, 6.0)
+            if dm is not None and seed is not None:
+                a += _sample_entry_delay(dm, random.Random(crc(seed, "bg", k)), r.node, r.category)
             tau = TAU
             P = self.blocks[("@P:" + r.node, 0)]
             T = self.blocks[("@T:" + r.node, 0)]
@@ -818,7 +838,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
                  reroute: bool = True, priority: bool = True, trace: list | None = None) -> dict:
     """Simulate one operating day. ``trace`` (optional list) receives one tuple per
     block occupation: (train_idx, entry, exit, seg_id, block, dir, delay_vs_plan)."""
-    infra = Infra(net)
+    infra = Infra(net, dm=dm, seed=seed)
     incidents = sample_incidents(net, dm, seed)
     for kind, sid, bi, k, t0, t1 in incidents:
         if kind == "full":
