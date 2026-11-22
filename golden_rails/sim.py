@@ -1086,7 +1086,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
             if rng.random() < SEG_EXTRA_P:
                 ract += rng.expovariate(SEG_EXTRA_P * nbk / m_extra)
         elif m_extra < 0:  # trains run faster than modelled (larger real recovery margin)
-            ract = max(0.85 * r, ract + m_extra / nbk)
+            ract = max(0.65 * r, ract + m_extra / nbk)
 
         ghosts = []
         if priority:

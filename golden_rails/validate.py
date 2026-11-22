@@ -42,7 +42,7 @@ OBS_VAL = ROOT / "data" / "observed_val"   # validation months (out-of-sample)
 RES = ROOT / "results"
 ALPHA_VEHICLE = 0.4      # share of all cancellations attributed to vehicle failures (assumption)
 SEG_EXTRA_SHRINK = 0.8
-MAX_SPEEDUP = 0.15
+MAX_SPEEDUP = 0.35
 TAU_FIXED = 1.5          # min route occupation per movement in a station throat
 
 _NET = _TR = _DM = None
@@ -317,7 +317,8 @@ def calibrate_nodes(params, procs, iterations=8, days=40, gain=25.0, obs_dir=OBS
         err = []
         for r in m.itertuples():
             d = r.sim_punct - r.punct_lt6
-            approach[(r.node, r.cat)] = float(np.clip(approach[(r.node, r.cat)] + gain * d, -2.0, 20.0))
+            lo_, hi_ = (-2.0, 20.0) if r.cat == "FV" else (-1.0, 8.0)
+            approach[(r.node, r.cat)] = float(np.clip(approach[(r.node, r.cat)] + gain * d, lo_, hi_))
             err.append(abs(d))
         print(f"nodes iteration {it + 1}: mean |error| {np.mean(err) * 100:.1f} pp over {len(m)} station/type pairs",
               flush=True)
