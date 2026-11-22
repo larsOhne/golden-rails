@@ -1,8 +1,8 @@
 {
   "days": 40,
   "national_change_sim": {
-    "FV": -0.0024168635248884573,
-    "NV": -0.002363424065406461
+    "FV": -0.0016435514529279383,
+    "NV": -0.0017860176460288146
   },
   "national_change_obs": {
     "FV": 0.028668176198485273,
@@ -10,20 +10,20 @@
   },
   "FV": {
     "n_stations": 61,
-    "corr_all": 0.15832671685305824,
+    "corr_all": 0.11900671300197442,
     "n_affected": 12,
-    "corr_affected": -0.2228403412135807,
-    "sign_agreement_affected": 0.5833333333333334,
-    "mean_sim_did_affected_pp": 0.8369566813582937,
+    "corr_affected": -0.04130078898756192,
+    "sign_agreement_affected": 0.75,
+    "mean_sim_did_affected_pp": 1.3077108660341576,
     "mean_obs_did_affected_pp": 2.403511760585819
   },
   "NV": {
     "n_stations": 68,
-    "corr_all": -0.05994212006005409,
+    "corr_all": -0.08993821534984973,
     "n_affected": 14,
-    "corr_affected": -0.014787840556329743,
+    "corr_affected": 0.21184872992591788,
     "sign_agreement_affected": 0.35714285714285715,
-    "mean_sim_did_affected_pp": 0.8975454327444787,
+    "mean_sim_did_affected_pp": 1.2703144584037223,
     "mean_obs_did_affected_pp": -1.5143966242110642
   }
 }
