@@ -105,10 +105,40 @@ def _scenario(task):
     return {"id": sid, "runs": runs, "added_track_km": added, "n_replanned": replanned}
 
 
-def run_many(tasks, procs=4, dm=None):
+CKPT = RES / "ckpt"
+
+
+def _key(task):
+    sid, changes, per_month, seed0 = task
+    return f"{sid}|{changes}|{per_month}|{seed0}"
+
+
+def run_many(tasks, procs=4, dm=None, ckpt="default"):
+    """Run scenarios in parallel. Finished scenarios are appended to a checkpoint file
+    (results/ckpt/<ckpt>.jsonl), so an interrupted run resumes where it stopped."""
     dm = dm or DisruptionModel()
-    with Pool(procs, initializer=_init, initargs=(dm.to_dict(),)) as pool:
-        return {r["id"]: r for r in pool.imap_unordered(_scenario, tasks)}
+    CKPT.mkdir(parents=True, exist_ok=True)
+    f = CKPT / f"{ckpt}.jsonl"
+    done = {}
+    if f.exists():
+        for line in f.read_text().splitlines():
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue          # truncated last line of an interrupted run
+            done[d["key"]] = d["res"]
+    keys = {_key(t): t for t in tasks}
+    todo = [t for k, t in keys.items() if k not in done]
+    if todo:
+        print(f"{ckpt}: {len(keys) - len(todo)} cached, {len(todo)} to run", flush=True)
+        with open(f, "a") as fh, Pool(procs, initializer=_init, initargs=(dm.to_dict(),)) as pool:
+            for i, (t, r) in enumerate(zip(todo, pool.imap(_scenario, todo)), 1):
+                done[_key(t)] = r
+                fh.write(json.dumps({"key": _key(t), "res": r}) + "\n")
+                fh.flush()
+                if i % 20 == 0:
+                    print(f"{ckpt}: {i}/{len(todo)}", flush=True)
+    return {t[0]: done[k] for k, t in keys.items()}
 
 
 def summarise(cands: pd.DataFrame, res: dict, base_id="BASE", base_cost=None) -> pd.DataFrame:
@@ -158,7 +188,7 @@ def screen(procs=4, per_month=SCREEN_PER_MONTH, skip_e2=True):
         cat = cat[cat.option != "E2"]
     t0 = time.time()
     tasks = [("BASE", "", per_month, 50_000)] + [(c.id, c.changes, per_month, 50_000) for c in cat.itertuples()]
-    res = run_many(tasks, procs)
+    res = run_many(tasks, procs, ckpt="screen")
     out = summarise(cat, res)
     out.to_csv(RES / "year_screening.csv", index=False)
     print(f"screening: {len(cat)} measures x {per_month * len(months())} days in {time.time() - t0:.0f}s", flush=True)
@@ -175,7 +205,7 @@ def refine(procs=4, per_month=REFINE_PER_MONTH, top=40):
     ids = set(best) | {i.replace("E-", "E2-", 1) for i in e_best} | set(cat[cat.option == "P"].id) | {"TT-soft"}
     sel = cat[cat.id.isin(ids)]
     tasks = [("BASE", "", per_month, 70_000)] + [(c.id, c.changes, per_month, 70_000) for c in sel.itertuples()]
-    res = run_many(tasks, procs)
+    res = run_many(tasks, procs, ckpt="refine")
     out = summarise(sel, res)
     out.to_csv(RES / "year_candidates.csv", index=False)
     rows = []
@@ -215,7 +245,7 @@ def greedy(procs=4, steps=12, pool_size=24, per_month=GREEDY_PER_MONTH):
     chosen, changes, path = [], [], []
     fitted = set()
     seed0 = 90_000
-    base_res = run_many([("P0", "", per_month, seed0)], procs)["P0"]
+    base_res = run_many([("P0", "", per_month, seed0)], procs, ckpt="greedy")["P0"]
     prev = np.array([x["pax_delay_min"] for x in base_res["runs"]])
     prev_punct = float(np.mean([x["pax_punct"] for x in base_res["runs"]]))
     prev_fv = float(np.mean([x["punct_FV"] for x in base_res["runs"]]))
@@ -228,7 +258,7 @@ def greedy(procs=4, steps=12, pool_size=24, per_month=GREEDY_PER_MONTH):
         if not pool:
             break
         tasks = [(c["id"], ";".join(changes + [c["changes"]]), per_month, seed0) for c in pool]
-        res = run_many(tasks, procs)
+        res = run_many(tasks, procs, ckpt="greedy")
         best, best_kpi = None, -math.inf
         for c in pool:
             r = np.array([x["pax_delay_min"] for x in res[c["id"]]["runs"]])
