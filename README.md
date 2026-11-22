@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logo.svg" alt="golden rails logo: a golden award statuette holding a rail, standing on a train wheel" width="220"></p>
+<p align="center"><img src="assets/logo.svg" alt="golden rails logo: a golden rail in cross-section in Art Deco style" width="200"></p>
 
 # golden-rails
 
