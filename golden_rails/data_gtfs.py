@@ -182,7 +182,7 @@ REAL_SUPPLEMENT = 0.07   # recovery margin contained in published running times 
 RT_OUT = ROOT / "data" / "segment_runtime.csv"
 
 
-def runtime_factors():
+def runtime_factors(tt_files=None):
     """Per-segment factors so that model minimum running times match GTFS times / (1 + supplement).
 
     For every leg between two consecutive model stops of a GTFS train, the scheduled
@@ -196,10 +196,12 @@ def runtime_factors():
     net = load_network(runtime=False)
     sids = list(net.segments)
     col = {s: i for i, s in enumerate(sids)}
-    trains = build_trains_gtfs(net)
-    tt = pd.read_csv(OUT).set_index("train_id")
+    pairs = []
+    for f in (tt_files or [OUT]):
+        tt_ = pd.read_csv(f).drop_duplicates("train_id").set_index("train_id")
+        pairs += [(tr, tt_) for tr in build_trains_gtfs(net, tt_file=f)]
     legs = {"FV": [], "REG": []}
-    for tr in trains:
+    for tr, tt in pairs:
         if tr.ttype == "GV" or tr.id not in tt.index:
             continue
         r = tt.loc[tr.id]
