@@ -1,0 +1,11 @@
+param,cat,value
+tau,all,3.0
+p_pred_scale,FV,1.0
+p_pred_scale,NV,1.0
+p_pred_scale,S,1.0
+p_fail_pre,FV,0.006224002440631192
+p_fail_pre,NV,0.006712236114835129
+p_fail_pre,S,0.00714060903151437
+fail_per_km,FV,1.6005518487960198e-05
+fail_per_km,NV,5.410186434448374e-05
+fail_per_km,S,0.00016065046625957227

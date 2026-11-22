@@ -128,6 +128,11 @@ NODE_FACTORS = DATA / "node_delay_calibration.csv"
 SEG_EXTRA = DATA / "segment_delay_calibration.csv"
 OPS_CALIB = DATA / "ops_calibration.csv"
 SEG_EXTRA_P = 0.3   # share of block traversals hit by the corridor's extra delay
+if "GR_TAU" not in os.environ and OPS_CALIB.exists():     # calibrated node route occupation
+    _t = pd.read_csv(OPS_CALIB)
+    _t = _t[_t.param == "tau"]
+    if len(_t):
+        TAU = float(_t.value.iloc[0])
 
 
 def _seg_extra() -> dict:
@@ -572,7 +577,10 @@ def _freight(net: Network, data_dir, shifts=None) -> list[Train]:
                 tid = f"{r.id}-{direction}-{k}"
                 tr = Train(tid, "GV", 100.0, off + k * gap + (shifts or {}).get(tid, 0.0), [seq[0], seq[-1]],
                            group="Güterverkehr")
-                route_train(net, tr, seq)
+                try:
+                    route_train(net, tr, seq)
+                except ValueError:      # corridor closed in this scenario
+                    continue
                 trains.append(tr)
     return trains
 
