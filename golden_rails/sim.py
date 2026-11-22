@@ -139,12 +139,15 @@ if "GR_TAU" not in os.environ and OPS_CALIB.exists():     # calibrated node rout
 
 
 def _seg_extra(col="extra_min") -> dict:
+    """Corridor correction per (segment, direction) (+1: from -> to as in segments.csv, -1: back)."""
     if os.environ.get("GR_SEG_EXTRA", "1") == "0" or not SEG_EXTRA.exists():
         return {}
     f = pd.read_csv(SEG_EXTRA)
     if col not in f:
         return {}
-    return {r.segment: float(getattr(r, col)) for r in f.itertuples() if getattr(r, col) != 0}
+    if "dir" not in f:
+        f = pd.concat([f.assign(dir=1), f.assign(dir=-1)])
+    return {(r.segment, int(r.dir)): float(getattr(r, col)) for r in f.itertuples() if getattr(r, col) != 0}
 
 
 def _node_factors() -> dict:
@@ -1077,7 +1080,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
                     node_wait[o] = node_wait.get(o, 0.0) + td - t0
                 ready = max(td, plan_entry[0])
         ract = r * max(0.97, 1.0 + rng.gauss(0, dm.run_sd))
-        m_extra = (dm.seg_extra if tr.ttype == "FV" else dm.seg_extra_reg).get(sid, 0.0)
+        m_extra = (dm.seg_extra if tr.ttype == "FV" else dm.seg_extra_reg).get((sid, d), 0.0)
         nbk = net.segments[sid].n_blocks()
         if m_extra > 0:   # slow orders / construction on this corridor (calibrated, per block)
             if rng.random() < SEG_EXTRA_P:

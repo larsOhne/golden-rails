@@ -255,11 +255,11 @@ def calibrate_segments(params, procs, iterations=4, days=40, gain=0.8, obs_dir=O
             except ValueError:
                 continue
             if p:
-                paths[cat][(r.node, r.next_node)] = [s for s, _ in p]
+                paths[cat][(r.node, r.next_node)] = list(p)       # (segment, direction)
         prev = params.get(key + "_raw") or {}
-        extra[cat] = {sid: float(prev.get(sid, 0.0)) for sid in net.segments}
-    floor = {cat: {sid: -MAX_SPEEDUP * net.run_minutes(s, ttype) for sid, s in net.segments.items()}
-             for cat, (_, ttype) in groups.items()}
+        extra[cat] = {(sid, d): float(prev.get((sid, d), 0.0)) for sid in net.segments for d in (1, -1)}
+    floor = {cat: {(sid, d): -MAX_SPEEDUP * net.run_minutes(s, ttype) for sid, s in net.segments.items()
+                   for d in (1, -1)} for cat, (_, ttype) in groups.items()}
     for it in range(iterations):
         out = simulate(days, procs, {**params, "seg_extra": extra["FV"], "seg_extra_reg": extra["NV"]},
                        seed0=9000 + 100 * it)
@@ -295,8 +295,8 @@ def calibrate_segments(params, procs, iterations=4, days=40, gain=0.8, obs_dir=O
             msg.append(f"{cat} {np.mean(errs):.2f} min over {len(errs)} legs")
         print(f"segments iteration {it + 1}: mean |leg error| " + "; ".join(msg), flush=True)
     final = {cat: {k: (v * SEG_EXTRA_SHRINK if v > 0 else v) for k, v in extra[cat].items()} for cat in groups}
-    pd.DataFrame([{"segment": k, "extra_min": round(final["FV"][k], 3), "extra_reg": round(final["NV"][k], 3)}
-                  for k in net.segments]).to_csv(S.SEG_EXTRA, index=False)
+    pd.DataFrame([{"segment": k[0], "dir": k[1], "extra_min": round(final["FV"][k], 3),
+                   "extra_reg": round(final["NV"][k], 3)} for k in extra["FV"]]).to_csv(S.SEG_EXTRA, index=False)
     params["seg_extra"], params["seg_extra_reg"] = final["FV"], final["NV"]
     params["seg_extra_raw"], params["seg_extra_reg_raw"] = dict(extra["FV"]), dict(extra["NV"])
     return params
