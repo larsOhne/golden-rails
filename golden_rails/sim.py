@@ -151,6 +151,18 @@ def _node_factors() -> dict:
     return {(r.node, r.cat): float(r.factor) for r in f.itertuples()}
 
 
+def _node_approach() -> dict:
+    if os.environ.get("GR_NODE_FACTORS", "1") == "0" or not NODE_FACTORS.exists():
+        return {}
+    f = pd.read_csv(NODE_FACTORS)
+    if "approach" not in f:
+        return {}
+    return {(r.node, r.cat): float(r.approach) for r in f.itertuples() if r.approach == r.approach and r.approach != 0}
+
+
+APPROACH_P = 0.3   # share of arrivals hit by the station's approach delay
+
+
 def _entry_by_node() -> dict:
     """(node, type) -> (share of trains entering late, mean delay if late), observed."""
     f = OBSERVED / "entry_delay_by_node.csv"
@@ -183,6 +195,10 @@ class DisruptionModel:
     entry_node: dict = field(default_factory=_entry_by_node)
     # per (node, type) multiplier on the dwell extension (calibrated on observed station punctuality)
     node_factor: dict = field(default_factory=_node_factors)
+    # per (node, type) approach adjustment in minutes, calibrated on observed station punctuality:
+    # > 0: extra delay before the station (approach conflicts, mean per arrival);
+    # < 0: delay recovered before the station (running-time supplements before major nodes)
+    node_approach: dict = field(default_factory=_node_approach)
     # per corridor: mean extra minutes per traversal (>0: slow orders, construction; <0: faster than
     # modelled), calibrated on observed delay growth between stations (validate.calibrate_segments)
     seg_extra: dict = field(default_factory=_seg_extra)
@@ -224,7 +240,7 @@ class DisruptionModel:
     def to_dict(self):
         return {k: (dict(v) if isinstance(v, dict) else v) for k, v in self.__dict__.items()
                 if k not in ("origin_empirical", "node_factor", "entry_node", "_p_obs", "_mean_obs",
-                             "seg_extra")}
+                             "seg_extra", "node_approach")}
 
 
 # ----------------------------------------------------------------------------
@@ -1142,6 +1158,12 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
                 if tr.ttype != "GV" and rng.random() < pdw:
                     ext = rng.expovariate(1.0 / (mdw * dm.scale))
             dwell = DWELL[tr.ttype] + ext
+            app = dm.node_approach.get((end_node, tr.ttype), 0.0) if tr.ttype != "GV" else 0.0
+            if app > 0:
+                if rng.random() < APPROACH_P:
+                    tx += rng.expovariate(APPROACH_P / app)
+            elif app < 0 and plan_arr[i] < math.inf:
+                tx = max(min(tx, plan_arr[i]), tx + app)
             if node:
                 tau = infra.tau(node, eq)
                 hold = (tr.hold.get(end_node) if tr.hold else None) or -math.inf

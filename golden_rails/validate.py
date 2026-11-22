@@ -60,6 +60,8 @@ def _init(params):
         _DM.node_factor = dict(params["factors"])
     if params.get("seg_extra") is not None:
         _DM.seg_extra = dict(params["seg_extra"])
+    if params.get("approach") is not None:
+        _DM.node_approach = dict(params["approach"])
     for k in ("p_pred_scale", "p_fail_pre", "fail_per_km", "turn_recovery"):
         if params.get(k) is not None:
             setattr(_DM, k, dict(params[k]))
@@ -249,33 +251,34 @@ def calibrate_segments(params, procs, iterations=4, days=16, gain=0.8, obs_dir=O
     return params
 
 
-def calibrate_nodes(params, procs, iterations=5, days=16, damping=0.8, obs_dir=OBS):
-    """Per-(node, type) dwell-extension factors so simulated station punctuality matches the observed."""
+def calibrate_nodes(params, procs, iterations=8, days=16, gain=25.0, obs_dir=OBS):
+    """Per-(node, type) approach adjustment (minutes) so simulated arrival punctuality per station matches
+    the observed one: more delay where the model is too punctual, recovery where it is too late."""
     obs = pd.read_csv(obs_dir / "punctuality_by_node.csv")
     obs = obs[(obs.stops >= 300) & obs.cat.isin(["FV", "NV", "S"])]
-    factors = {(r.node, r.cat): 1.0 for r in obs.itertuples()}
+    prev = params.get("approach") or {}
+    approach = {(r.node, r.cat): float(prev.get((r.node, r.cat), 0.0)) for r in obs.itertuples()}
     for it in range(iterations):
-        out = simulate(days, procs, {**params, "factors": factors}, seed0=7000 + 100 * it)
+        out = simulate(days, procs, {**params, "approach": approach, "factors": {}}, seed0=7000 + 100 * it)
         sim = node_table(out, days)
         m = sim.merge(obs, on=["node", "cat"])
         m = m[m.sim_stops >= 5]
         err = []
         for r in m.itertuples():
-            lo, ls = max(1 - r.punct_lt6, 0.01), max(1 - r.sim_punct, 0.01)
-            k = factors[(r.node, r.cat)] * (lo / ls) ** damping
-            factors[(r.node, r.cat)] = float(np.clip(k, 0.0, 12.0))
-            err.append(abs(r.sim_punct - r.punct_lt6))
+            d = r.sim_punct - r.punct_lt6
+            approach[(r.node, r.cat)] = float(np.clip(approach[(r.node, r.cat)] + gain * d, -6.0, 30.0))
+            err.append(abs(d))
         print(f"nodes iteration {it + 1}: mean |error| {np.mean(err) * 100:.1f} pp over {len(m)} station/type pairs",
               flush=True)
-    pd.DataFrame([{"node": k[0], "cat": k[1], "factor": round(v, 3)} for k, v in factors.items()]).to_csv(
-        S.NODE_FACTORS, index=False)
-    params["factors"] = factors
+    pd.DataFrame([{"node": k[0], "cat": k[1], "factor": 1.0, "approach": round(v, 3)} for k, v in approach.items()]
+                 ).to_csv(S.NODE_FACTORS, index=False)
+    params["approach"] = approach
+    params["factors"] = {}
     return params
-
 
 def calibrate(procs=4):
     dm = DisruptionModel()
-    params = {"tau": S.TAU, "factors": {}, "seg_extra": {},
+    params = {"tau": S.TAU, "factors": {}, "seg_extra": {}, "approach": {},
               "p_pred_scale": dict(dm.p_pred_scale), "p_fail_pre": dict(dm.p_fail_pre),
               "fail_per_km": dict(dm.fail_per_km), "turn_recovery": dict(dm.turn_recovery)}
     # TAU is not identifiable from the data (node dwell-gain error flat between 1 and 3 min, see README);
@@ -283,8 +286,9 @@ def calibrate(procs=4):
     params["tau"] = TAU_FIXED
     params = calibrate_ops(params, procs)
     write_ops(params)
+    params = calibrate_nodes(params, procs, iterations=8)
     params = calibrate_segments(params, procs)
-    params = calibrate_nodes(params, procs)
+    params = calibrate_nodes(params, procs, iterations=6)
     params = calibrate_ops(params, procs, iterations=2)
     write_ops(params)
     return params
@@ -297,7 +301,7 @@ def recalibrate_nodes_ops(procs=4):
     params = {"tau": S.TAU, "seg_extra": dict(dm.seg_extra), "p_pred_scale": dict(dm.p_pred_scale),
               "p_fail_pre": dict(dm.p_fail_pre), "fail_per_km": dict(dm.fail_per_km),
               "turn_recovery": dict(dm.turn_recovery)}
-    params = calibrate_nodes(params, procs, iterations=8)
+    params = calibrate_nodes(params, procs, iterations=10)
     params = calibrate_ops(params, procs, iterations=2)
     write_ops(params)
     return params
