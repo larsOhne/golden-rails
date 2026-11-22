@@ -6,7 +6,7 @@ at the same node are merged, and legs between two nodes that the model network
 cannot reproduce (no path, or a path much longer than the straight line) split
 the trip. The result is written to data/timetable_gtfs.csv:
 
-    train_id, category (FV/NV/S), line, operator_route, stops, dep_min, arr_min
+    train_id, category (FV/NV/S), line, agency, stops, dep_min, arr_min
 
 with stops as node ids and departure/arrival minutes after midnight at each node.
 
@@ -103,11 +103,13 @@ def build(day: str = REF_DAY) -> pd.DataFrame:
         return path_ok[key]
 
     rows = []
+    background = []   # calls of trips that touch only one model node (occupy the station, not a corridor)
     stats = {}
     for feed in ("fv", "rv"):
         fd = RAW / f"gtfs_{feed}"
         services = active_services(fd, day)
         routes = pd.read_csv(fd / "routes.txt", dtype=str).set_index("route_id")
+        agency = pd.read_csv(fd / "agency.txt", dtype=str).set_index("agency_id").agency_name.to_dict()
         trips = pd.read_csv(fd / "trips.txt", dtype=str)
         trips = trips[trips.service_id.isin(services)]
         stops = pd.read_csv(fd / "stops.txt", dtype=str)
@@ -123,9 +125,18 @@ def build(day: str = REF_DAY) -> pd.DataFrame:
         for trip_id, g in st.groupby("trip_id", sort=False):
             g = g[g.node.notna()]
             if g.node.nunique() < 2:
+                if len(g):
+                    rid = tinfo.loc[trip_id, "route_id"]
+                    c1 = category(routes.loc[rid, "route_short_name"] if rid in routes.index else "")
+                    if c1 != "S":
+                        a, d = _t(g.arrival_time.iloc[0]), _t(g.departure_time.iloc[-1])
+                        background.append({"node": g.node.iloc[0], "category": c1,
+                                           "arr_min": round(a if a == a else d, 1),
+                                           "dep_min": round(d if d == d else a, 1)})
                 continue
             rid = tinfo.loc[trip_id, "route_id"]
             short = routes.loc[rid, "route_short_name"] if rid in routes.index else ""
+            ag = agency.get(routes.loc[rid, "agency_id"], "") if rid in routes.index else ""
             cat = category(short)
             calls = []  # (node, arr, dep)
             for r in g.itertuples():
@@ -147,7 +158,7 @@ def build(day: str = REF_DAY) -> pd.DataFrame:
             for k, p in enumerate(pieces):
                 if len(p) < 2:
                     continue
-                rows.append({"train_id": f"{feed}-{trip_id}-{k}", "category": cat, "line": short,
+                rows.append({"train_id": f"{feed}-{trip_id}-{k}", "category": cat, "line": short, "agency": ag,
                              "stops": " ".join(c[0] for c in p),
                              "dep_min": " ".join(f"{c[2]:.1f}" for c in p[:-1]),
                              "arr_min": " ".join(f"{c[1]:.1f}" for c in p[1:])})
@@ -155,6 +166,7 @@ def build(day: str = REF_DAY) -> pd.DataFrame:
         stats[feed] = {"trips_on_day": n_trips, "model_trains": n_kept}
     df = pd.DataFrame(rows)
     df.to_csv(OUT, index=False)
+    pd.DataFrame(background).to_csv(ROOT / "data" / "node_background.csv", index=False)
     print(stats, df.category.value_counts().to_dict())
     return df
 

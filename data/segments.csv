@@ -110,3 +110,12 @@ B-MD,B,MD,143,2,160,FV|NV|GV,2,0,0,flat,0.08,0.12,0.7,0.1,via Potsdam - Brandenb
 HU-WÜ,HU,WÜ,108,2,150,FV|NV|GV,1,0,0,hilly,0.1,0.15,0.55,0.2,via Aschaffenburg (Main-Spessart-Bahn)
 A-N,A,N,154,2,160,FV|NV|GV,1,0,0,rolling,0.06,0.1,0.74,0.1,via Donauwörth - Treuchtlingen
 HI-BS,HI,BS,41,2,160,FV|NV|GV,1,0,0,rolling,0.05,0.1,0.8,0.05,
+OB-GE,OB,GE,13,2,160,FV|NV|S|GV,3,0,0,flat,0.5,0.5,0.0,0.0,Köln-Mindener Bahn
+E-GE,E,GE,8,2,100,FV|NV|S|GV,3,0,0,flat,0.5,0.5,0.0,0.0,
+GE-DO,GE,DO,28,2,140,FV|NV|S|GV,3,0,0,flat,0.4,0.5,0.1,0.0,via Wanne-Eickel - Herne
+GE-MS,GE,MS,70,2,160,FV|NV|GV,2,0,0,flat,0.15,0.25,0.5,0.1,via Recklinghausen - Haltern
+BO-GE,BO,GE,13,2,120,NV|S|GV,2,0,0,flat,0.5,0.5,0.0,0.0,via Wanne-Eickel
+AC-D,AC,D,86,2,140,NV|S|GV,2,0,0,rolling,0.15,0.25,0.5,0.1,via Mönchengladbach
+MZ-SB,MZ,SB,140,2,140,NV|GV,1,0,0,hilly,0.08,0.12,0.5,0.3,Nahetalbahn via Bad Kreuznach
+U-IN,U,IN,123,1,140,NV|GV,1,0,0,flat,0.05,0.1,0.75,0.1,Donautalbahn via Donauwörth
+HI-LEH,HI,LEH,26,2,140,NV|S|GV,1,1,0,flat,0.05,0.15,0.75,0.05,

@@ -56,6 +56,7 @@ class Segment:
     nv_tph: float
     s_tph: float = 0.0
     etcs: bool = False
+    etcs_only: bool = False      # ETCS without lineside signals: only equipped trains may run
     terrain: str = "flat"
     urban_share: float = 0.0
     suburban_share: float = 0.0
@@ -66,6 +67,7 @@ class Segment:
     nb: int = 0   # block count, fixed by the *base* track layout (upgrades keep it)
     f_fv: float = 1.0    # running-time factor calibrated on GTFS (long-distance)
     f_reg: float = 1.0   # running-time factor calibrated on GTFS (regional / S-Bahn)
+    etcs_only_base: bool = False   # ETCS-only today (trains running here today are equipped)
 
     def __post_init__(self):
         if not self.nb:
@@ -79,12 +81,27 @@ class Segment:
     def headway(self) -> float:
         return HEADWAY_ETCS if self.etcs else HEADWAY_CONVENTIONAL
 
+    def hw(self, equipped: bool) -> float:
+        """Minimum headway for a following train: the short ETCS headway needs an equipped train;
+        unequipped trains run on the lineside signals (mixed traffic)."""
+        return HEADWAY_ETCS if (self.etcs and equipped) else HEADWAY_CONVENTIONAL
+
+
+@dataclass
+class NodeCap:
+    platforms: int            # main-line platform tracks
+    groups: int               # independent route groups in the station throat
+    etcs: bool = False        # ETCS in the node (shorter route occupation for equipped trains)
+
 
 @dataclass
 class Network:
     nodes: pd.DataFrame
     segments: dict[str, Segment]
     adj: dict[str, list[tuple[str, str, int]]] = field(default_factory=dict)
+    node_cap: dict[str, NodeCap] = field(default_factory=dict)
+    fitted: set = field(default_factory=set)          # fleet groups retro-fitted with ETCS
+    reserves: dict = field(default_factory=dict)      # (node, group) -> hot reserve train sets
 
     def __post_init__(self):
         self.rebuild()
@@ -96,7 +113,8 @@ class Network:
             self.adj[s.b].append((s.a, s.id, -1))
 
     def copy(self) -> "Network":
-        return Network(self.nodes, copy.deepcopy(self.segments))
+        return Network(self.nodes, copy.deepcopy(self.segments), node_cap=copy.deepcopy(self.node_cap),
+                       fitted=set(self.fitted), reserves=dict(self.reserves))
 
     # ------------------------------------------------------------------
     def run_minutes(self, seg: Segment, ttype: str, train_vmax: float | None = None) -> float:
@@ -106,7 +124,7 @@ class Network:
         return seg.length / (v * tt["eff"]) * 60.0 * f
 
     def shortest_path(self, src: str, dst: str, ttype: str, train_vmax=None,
-                      extra_cost=None) -> list[tuple[str, int]]:
+                      extra_cost=None, equipped: bool = True) -> list[tuple[str, int]]:
         """Fastest path as list of (segment_id, direction). extra_cost(seg_id)->min."""
         if src == dst:
             return []
@@ -121,7 +139,7 @@ class Network:
                 continue
             for v, sid, direction in self.adj[u]:
                 seg = self.segments[sid]
-                if ttype not in seg.types:
+                if ttype not in seg.types or (seg.etcs_only and not equipped):
                     continue
                 w = self.run_minutes(seg, ttype, train_vmax) + 1.0  # +1 min node penalty
                 if extra_cost:
@@ -165,8 +183,22 @@ class Network:
                 n = int(n)
                 added_track_km += seg.length * max(0, n - seg.tracks)
                 seg.tracks = n
-            elif parts[0] == "etcs":
+            elif parts[0] == "etcs":            # ETCS L2 alongside the lineside signals
                 self.segments[parts[1]].etcs = True
+            elif parts[0] == "etcs2":           # ETCS only, lineside signals removed
+                self.segments[parts[1]].etcs = True
+                self.segments[parts[1]].etcs_only = True
+            elif parts[0] == "fit":             # ETCS retrofit of a fleet group
+                self.fitted.add(parts[1])
+            elif parts[0] == "reserve":         # reserve:<node>:<group>:<n>
+                _, node, group, n = parts
+                self.reserves[(node, group)] = self.reserves.get((node, group), 0) + int(n)
+            elif parts[0] == "plat":            # plat:<node>:<k> more platform tracks
+                self.node_cap[parts[1]].platforms += int(parts[2])
+            elif parts[0] == "throat":          # throat:<node>:<k> more route groups (flyover, approach)
+                self.node_cap[parts[1]].groups += int(parts[2])
+            elif parts[0] == "netcs":           # ETCS in the node
+                self.node_cap[parts[1]].etcs = True
             else:
                 raise ValueError(op)
         self.rebuild()
@@ -205,10 +237,26 @@ def load_network(data_dir: Path = DATA, runtime: bool = True) -> Network:
             urban_share=float(r["urban_share"]), suburban_share=float(r["suburban_share"]),
             open_share=float(r["open_share"]), protected_share=float(r["protected_share"]),
             note=r["note"])
+        # existing ETCS on new high-speed lines (VDE 8) runs without lineside signals
+        seg = segs[r["id"]]
+        seg.etcs_only = seg.etcs_only_base = bool(seg.etcs and ("NBS" in seg.note or int(r["etcs"]) == 2))
     rt = data_dir / "segment_runtime.csv"
     if runtime and rt.exists():
         for _, r in pd.read_csv(rt).iterrows():
             if r["segment"] in segs:
                 segs[r["segment"]].f_fv = float(r["factor_fv"])
                 segs[r["segment"]].f_reg = float(r["factor_reg"])
-    return Network(nodes, segs)
+    return Network(nodes, segs, node_cap=load_node_capacity(data_dir, nodes, segs))
+
+
+def load_node_capacity(data_dir: Path, nodes, segs) -> dict:
+    """Platform tracks per major node (data/nodes_capacity.csv) and route groups in the throat:
+    one per approach corridor, two for corridors with four or more tracks."""
+    f = data_dir / "nodes_capacity.csv"
+    if not f.exists() or os.environ.get("GR_NODES", "1") == "0":
+        return {}
+    cap = {}
+    for r in pd.read_csv(f).itertuples():
+        g = sum(1 if s.tracks < 4 else 2 for s in segs.values() if r.node in (s.a, s.b))
+        cap[r.node] = NodeCap(int(r.platforms), max(1, g))
+    return cap
