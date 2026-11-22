@@ -287,6 +287,18 @@ def calibrate(procs=4):
 
 
 
+def recalibrate_nodes_ops(procs=4):
+    """Station factors (more iterations) and then entry/failure rates, on the stored corridor calibration."""
+    dm = DisruptionModel()
+    params = {"tau": S.TAU, "seg_extra": dict(dm.seg_extra), "p_pred_scale": dict(dm.p_pred_scale),
+              "p_fail_pre": dict(dm.p_fail_pre), "fail_per_km": dict(dm.fail_per_km),
+              "turn_recovery": dict(dm.turn_recovery)}
+    params = calibrate_nodes(params, procs, iterations=8)
+    params = calibrate_ops(params, procs, iterations=2)
+    write_ops(params)
+    return params
+
+
 def recalibrate_ops(procs=4, iterations=4):
     """Re-run only the entry/failure calibration on top of the stored corridor and node calibration."""
     dm = DisruptionModel()
@@ -387,6 +399,7 @@ def main():
     ap.add_argument("--procs", type=int, default=4)
     ap.add_argument("--calibrate", action="store_true", help="run the calibration first")
     ap.add_argument("--recalibrate-ops", action="store_true", help="only entry-delay and failure rates")
+    ap.add_argument("--recalibrate-nodes", action="store_true", help="station factors, then entry/failure rates")
     ap.add_argument("--obs", default=str(OBS), help="observed data directory (e.g. data/observed_2026-09)")
     ap.add_argument("--tag", default="")
     a = ap.parse_args()
@@ -394,6 +407,8 @@ def main():
         calibrate(a.procs)
     if a.recalibrate_ops:
         recalibrate_ops(a.procs)
+    if a.recalibrate_nodes:
+        recalibrate_nodes_ops(a.procs)
     print(json.dumps(run(a.days, a.procs, Path(a.obs), a.tag), indent=2))
 
 

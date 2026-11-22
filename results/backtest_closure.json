@@ -1,8 +1,8 @@
 {
   "days": 40,
   "national_change_sim": {
-    "FV": -0.0016435514529279383,
-    "NV": -0.0017860176460288146
+    "FV": -3.555843734337483e-05,
+    "NV": -0.001241265124722335
   },
   "national_change_obs": {
     "FV": 0.028668176198485273,
@@ -10,20 +10,20 @@
   },
   "FV": {
     "n_stations": 61,
-    "corr_all": 0.11900671300197442,
+    "corr_all": 0.1987704290512992,
     "n_affected": 12,
-    "corr_affected": -0.04130078898756192,
-    "sign_agreement_affected": 0.75,
-    "mean_sim_did_affected_pp": 1.3077108660341576,
+    "corr_affected": 0.040780501687290714,
+    "sign_agreement_affected": 0.5833333333333334,
+    "mean_sim_did_affected_pp": 1.5034274074040155,
     "mean_obs_did_affected_pp": 2.403511760585819
   },
   "NV": {
     "n_stations": 68,
-    "corr_all": -0.08993821534984973,
+    "corr_all": -0.0904191136509314,
     "n_affected": 14,
-    "corr_affected": 0.21184872992591788,
-    "sign_agreement_affected": 0.35714285714285715,
-    "mean_sim_did_affected_pp": 1.2703144584037223,
+    "corr_affected": 0.08790384316067104,
+    "sign_agreement_affected": 0.21428571428571427,
+    "mean_sim_did_affected_pp": 1.618378447750906,
     "mean_obs_did_affected_pp": -1.5143966242110642
   }
 }

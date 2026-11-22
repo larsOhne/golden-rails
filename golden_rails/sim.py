@@ -191,7 +191,7 @@ class DisruptionModel:
     # delay recovered in a turnaround beyond the planned buffer (quick turns, swaps; calibrated)
     turn_recovery: dict = field(default_factory=lambda: _ops("turn_recovery", {"FV": 0.0, "NV": 0.0, "S": 0.0}))
     # dwell-time extensions at each scheduled stop
-    p_dwell: dict = field(default_factory=lambda: {"FV": 0.30, "NV": 0.17, "S": 0.08})
+    p_dwell: dict = field(default_factory=lambda: {"FV": 0.30, "NV": 0.30, "S": 0.08})
     mean_dwell: dict = field(default_factory=lambda: {"FV": 3.0, "NV": 1.1, "S": 0.8})
     # running-time variation (multiplicative, normal, sd)
     run_sd: float = 0.03
