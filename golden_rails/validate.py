@@ -40,7 +40,8 @@ OBS = ROOT / "data" / "observed"
 RES = ROOT / "results"
 ALPHA_VEHICLE = 0.4      # share of all cancellations attributed to vehicle failures (assumption)
 SEG_EXTRA_SHRINK = 0.6
-MAX_SPEEDUP = 0.15       # negative corridor correction: at most 15% faster than modelled
+MAX_SPEEDUP = 0.15
+TAU_FIXED = 1.5          # min route occupation per movement in a station throat       # negative corridor correction: at most 15% faster than modelled
 
 _NET = _TR = _DM = None
 
@@ -276,7 +277,9 @@ def calibrate(procs=4):
     params = {"tau": S.TAU, "factors": {}, "seg_extra": {},
               "p_pred_scale": dict(dm.p_pred_scale), "p_fail_pre": dict(dm.p_fail_pre),
               "fail_per_km": dict(dm.fail_per_km), "turn_recovery": dict(dm.turn_recovery)}
-    params = calibrate_tau(params, procs, grid=(1.5, 2.0, 3.0))
+    # TAU is not identifiable from the data (node dwell-gain error flat between 1 and 3 min, see README);
+    # it is fixed at a physically plausible 1.5 min route occupation
+    params["tau"] = TAU_FIXED
     params = calibrate_ops(params, procs)
     write_ops(params)
     params = calibrate_segments(params, procs)

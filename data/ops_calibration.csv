@@ -1,5 +1,5 @@
 param,cat,value
-tau,all,3.0
+tau,all,1.5
 p_pred_scale,FV,0.7701432582512698
 p_pred_scale,NV,0.01046183241668139
 p_pred_scale,S,0.00026285708303710244
