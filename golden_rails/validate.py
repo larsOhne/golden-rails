@@ -40,7 +40,7 @@ OBS = S.OBSERVED                       # calibration months (data/observed_cal)
 OBS_VAL = ROOT / "data" / "observed_val"   # validation months (out-of-sample)
 RES = ROOT / "results"
 ALPHA_VEHICLE = 0.4      # share of all cancellations attributed to vehicle failures (assumption)
-SEG_EXTRA_SHRINK = 0.6
+SEG_EXTRA_SHRINK = 0.8
 MAX_SPEEDUP = 0.15
 TAU_FIXED = 1.5          # min route occupation per movement in a station throat
 
@@ -80,6 +80,8 @@ def _init(params):
         _DM.node_factor = dict(params["factors"])
     if params.get("seg_extra") is not None:
         _DM.seg_extra = dict(params["seg_extra"])
+    if params.get("seg_extra_reg") is not None:
+        _DM.seg_extra_reg = dict(params["seg_extra_reg"])
     if params.get("approach") is not None:
         _DM.node_approach = dict(params["approach"])
     for k in ("p_pred_scale", "p_fail_pre", "fail_per_km", "turn_recovery"):
@@ -197,7 +199,7 @@ def calibrate_tau(params, procs, days=10, grid=(1.0, 1.5, 2.0, 2.5, 3.0)):
     return params
 
 
-def calibrate_ops(params, procs, days=24, iterations=4):
+def calibrate_ops(params, procs, days=40, iterations=4):
     """Entry-delay share of trains with a predecessor, and vehicle failure rates."""
     # trains whose vehicle comes from a modelled turnaround: exogenous start delay calibrated on the
     # observed departures after an on-time arrival (turnaround.csv, inbound delay 0-5 min, >= 6 min late)
@@ -236,53 +238,59 @@ def calibrate_ops(params, procs, days=24, iterations=4):
     return params
 
 
-def calibrate_segments(params, procs, iterations=4, days=16, gain=0.8, obs_dir=OBS, min_trains=150):
-    """Corridor correction (both signs) so that simulated FV delay growth between consecutive stations
-    matches the observed one."""
+def calibrate_segments(params, procs, iterations=4, days=40, gain=0.6, obs_dir=OBS, min_trains=150):
+    """Corridor correction (both signs), separately for long-distance trains (fitted to the observed
+    FV delay growth between consecutive stations) and for regional trains (fitted to the NV legs)."""
     net = load_network()
-    obs = pd.read_csv(obs_dir / "delay_change_by_leg.csv")
-    obs = obs[(obs.cat == "FV") & (obs.trains >= min_trains) & (obs.node != obs.next_node)]
-    paths = {}
-    for r in obs.itertuples():
-        try:
-            p = net.shortest_path(r.node, r.next_node, "FV")
-        except ValueError:
-            continue
-        if p:
-            paths[(r.node, r.next_node)] = [s for s, _ in p]
-    prev = params.get("seg_extra_raw") or {}
-    extra = {sid: float(prev.get(sid, 0.0)) for sid in net.segments}
-    floor = {sid: -MAX_SPEEDUP * net.run_minutes(s, "FV") for sid, s in net.segments.items()}
-    for it in range(iterations):
-        out = simulate(days, procs, {**params, "seg_extra": extra}, seed0=9000 + 100 * it)
-        sim = leg_table(out)
-        m = obs.merge(sim[sim.cat == "FV"], on=["node", "next_node"], how="inner")
-        num, den, errs = {}, {}, []
-        for r in m.itertuples():
-            p = paths.get((r.node, r.next_node))
-            if not p:
+    obs_all = pd.read_csv(obs_dir / "delay_change_by_leg.csv")
+    obs_all = obs_all[(obs_all.trains >= min_trains) & (obs_all.node != obs_all.next_node)]
+    groups = {"FV": ("seg_extra", "FV"), "NV": ("seg_extra_reg", "NV")}
+    paths, extra = {}, {}
+    for cat, (key, ttype) in groups.items():
+        paths[cat] = {}
+        for r in obs_all[obs_all.cat == cat].itertuples():
+            try:
+                p = net.shortest_path(r.node, r.next_node, ttype)
+            except ValueError:
                 continue
-            res = r.mean_change - r.sim_mean_change
-            errs.append(abs(res))
-            L = sum(net.segments[s].length for s in p)
-            for sid in p:
-                share = net.segments[sid].length / L
-                num[sid] = num.get(sid, 0.0) + r.trains * res * share
-                den[sid] = den.get(sid, 0.0) + r.trains
-        for sid in num:
-            extra[sid] = max(floor[sid], extra[sid] + gain * num[sid] / den[sid])
-        print(f"segments iteration {it + 1}: mean |leg error| {np.mean(errs):.2f} min over {len(errs)} legs",
-              flush=True)
-    # positive part shrunk (the fit cannot see every conflict the model generates itself)
-    final = {k: (v * SEG_EXTRA_SHRINK if v > 0 else v) for k, v in extra.items()}
-    pd.DataFrame([{"segment": k, "extra_min": round(v, 3)} for k, v in final.items()]).to_csv(
-        S.SEG_EXTRA, index=False)
-    params["seg_extra"] = final
-    params["seg_extra_raw"] = dict(extra)
+            if p:
+                paths[cat][(r.node, r.next_node)] = [s for s, _ in p]
+        prev = params.get(key + "_raw") or {}
+        extra[cat] = {sid: float(prev.get(sid, 0.0)) for sid in net.segments}
+    floor = {cat: {sid: -MAX_SPEEDUP * net.run_minutes(s, ttype) for sid, s in net.segments.items()}
+             for cat, (_, ttype) in groups.items()}
+    for it in range(iterations):
+        out = simulate(days, procs, {**params, "seg_extra": extra["FV"], "seg_extra_reg": extra["NV"]},
+                       seed0=9000 + 100 * it)
+        sim = leg_table(out)
+        msg = []
+        for cat in groups:
+            m = obs_all[obs_all.cat == cat].merge(sim[sim.cat == cat], on=["node", "next_node"], how="inner")
+            num, den, errs = {}, {}, []
+            for r in m.itertuples():
+                p = paths[cat].get((r.node, r.next_node))
+                if not p or r.sim_n < 10:
+                    continue
+                res = r.mean_change - r.sim_mean_change
+                errs.append(abs(res))
+                L = sum(net.segments[s].length for s in p)
+                for sid in p:
+                    share = net.segments[sid].length / L
+                    num[sid] = num.get(sid, 0.0) + r.trains * res * share
+                    den[sid] = den.get(sid, 0.0) + r.trains * share
+            for sid in num:
+                extra[cat][sid] = max(floor[cat][sid], extra[cat][sid] + gain * num[sid] / den[sid])
+            msg.append(f"{cat} {np.mean(errs):.2f} min over {len(errs)} legs")
+        print(f"segments iteration {it + 1}: mean |leg error| " + "; ".join(msg), flush=True)
+    final = {cat: {k: (v * SEG_EXTRA_SHRINK if v > 0 else v) for k, v in extra[cat].items()} for cat in groups}
+    pd.DataFrame([{"segment": k, "extra_min": round(final["FV"][k], 3), "extra_reg": round(final["NV"][k], 3)}
+                  for k in net.segments]).to_csv(S.SEG_EXTRA, index=False)
+    params["seg_extra"], params["seg_extra_reg"] = final["FV"], final["NV"]
+    params["seg_extra_raw"], params["seg_extra_reg_raw"] = dict(extra["FV"]), dict(extra["NV"])
     return params
 
 
-def calibrate_nodes(params, procs, iterations=8, days=16, gain=25.0, obs_dir=OBS):
+def calibrate_nodes(params, procs, iterations=8, days=40, gain=25.0, obs_dir=OBS):
     """Per-(node, type) approach adjustment (minutes) so simulated arrival punctuality per station matches
     the observed one: more delay where the model is too punctual, recovery where it is too late."""
     obs = pd.read_csv(obs_dir / "punctuality_by_node.csv")
@@ -297,7 +305,7 @@ def calibrate_nodes(params, procs, iterations=8, days=16, gain=25.0, obs_dir=OBS
         err = []
         for r in m.itertuples():
             d = r.sim_punct - r.punct_lt6
-            approach[(r.node, r.cat)] = float(np.clip(approach[(r.node, r.cat)] + gain * d, -6.0, 30.0))
+            approach[(r.node, r.cat)] = float(np.clip(approach[(r.node, r.cat)] + gain * d, -2.0, 20.0))
             err.append(abs(d))
         print(f"nodes iteration {it + 1}: mean |error| {np.mean(err) * 100:.1f} pp over {len(m)} station/type pairs",
               flush=True)
@@ -309,7 +317,7 @@ def calibrate_nodes(params, procs, iterations=8, days=16, gain=25.0, obs_dir=OBS
 
 def calibrate(procs=4):
     dm = DisruptionModel()
-    params = {"tau": S.TAU, "factors": {}, "seg_extra": {}, "approach": {},
+    params = {"tau": S.TAU, "factors": {}, "seg_extra": {}, "seg_extra_reg": {}, "approach": {},
               "p_pred_scale": dict(dm.p_pred_scale), "p_fail_pre": dict(dm.p_fail_pre),
               "fail_per_km": dict(dm.fail_per_km), "turn_recovery": dict(dm.turn_recovery),
               "months": obs_months(OBS)}
@@ -319,10 +327,10 @@ def calibrate(procs=4):
     params["tau"] = TAU_FIXED
     params = calibrate_ops(params, procs)
     write_ops(params)
-    params = calibrate_nodes(params, procs, iterations=8)
-    for rnd in range(3):          # corridors and stations interact: alternate
-        params = calibrate_segments(params, procs, iterations=4 if rnd == 0 else 3)
-        params = calibrate_nodes(params, procs, iterations=5)
+    # corridors first and last (where delay arises), stations only for the remaining level difference
+    params = calibrate_segments(params, procs, iterations=5)
+    params = calibrate_nodes(params, procs, iterations=5)
+    params = calibrate_segments(params, procs, iterations=3)
     params = calibrate_ops(params, procs, iterations=2)
     write_ops(params)
     return params
@@ -383,6 +391,11 @@ def run(days=30, procs=4, obs_dir=OBS, tag=""):
     lm.to_csv(RES / f"validation_legs{tag}.csv", index=False)
     summary["legs_FV"] = {"n": int(len(lm)), "corr": float(np.corrcoef(lm.mean_change, lm.sim_mean_change)[0, 1]),
                           "mae_min": float((lm.mean_change - lm.sim_mean_change).abs().mean())}
+    ol = pd.read_csv(obs_dir / "delay_change_by_leg.csv")
+    ol = ol[(ol.cat == "NV") & (ol.trains >= 150) & (ol.node != ol.next_node)]
+    ln = ol.merge(legs[(legs.cat == "NV") & (legs.sim_n >= 10)], on=["node", "next_node"])
+    summary["legs_NV"] = {"n": int(len(ln)), "corr": float(np.corrcoef(ln.mean_change, ln.sim_mean_change)[0, 1]),
+                          "mae_min": float((ln.mean_change - ln.sim_mean_change).abs().mean())}
     err, dm_ = dwell_error(out, obs_dir)
     dm_.to_csv(RES / f"validation_node_dwell{tag}.csv", index=False)
     summary["node_dwell"] = {"n": int(len(dm_)), "mae_min": err,

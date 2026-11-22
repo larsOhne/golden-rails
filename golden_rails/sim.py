@@ -138,11 +138,13 @@ if "GR_TAU" not in os.environ and OPS_CALIB.exists():     # calibrated node rout
         TAU = float(_t.value.iloc[0])
 
 
-def _seg_extra() -> dict:
+def _seg_extra(col="extra_min") -> dict:
     if os.environ.get("GR_SEG_EXTRA", "1") == "0" or not SEG_EXTRA.exists():
         return {}
     f = pd.read_csv(SEG_EXTRA)
-    return {r.segment: float(r.extra_min) for r in f.itertuples() if r.extra_min != 0}
+    if col not in f:
+        return {}
+    return {r.segment: float(getattr(r, col)) for r in f.itertuples() if getattr(r, col) != 0}
 
 
 def _node_factors() -> dict:
@@ -202,7 +204,8 @@ class DisruptionModel:
     node_approach: dict = field(default_factory=_node_approach)
     # per corridor: mean extra minutes per traversal (>0: slow orders, construction; <0: faster than
     # modelled), calibrated on observed delay growth between stations (validate.calibrate_segments)
-    seg_extra: dict = field(default_factory=_seg_extra)
+    seg_extra: dict = field(default_factory=_seg_extra)                     # long-distance trains
+    seg_extra_reg: dict = field(default_factory=lambda: _seg_extra("extra_reg"))   # regional, S-Bahn, freight
     mean_origin: dict = field(default_factory=lambda: {"FV": 7.5, "NV": 4.0, "S": 3.0, "GV": 25.0})
     # trains whose vehicle comes from a modelled predecessor get only this share of the observed
     # entry-delay probability (the rest is propagated through the circulation; calibrated)
@@ -241,7 +244,7 @@ class DisruptionModel:
     def to_dict(self):
         return {k: (dict(v) if isinstance(v, dict) else v) for k, v in self.__dict__.items()
                 if k not in ("origin_empirical", "node_factor", "entry_node", "_p_obs", "_mean_obs",
-                             "seg_extra", "node_approach")}
+                             "seg_extra", "seg_extra_reg", "node_approach")}
 
 
 # ----------------------------------------------------------------------------
@@ -1074,7 +1077,7 @@ def simulate_day(net: Network, trains: list[Train], dm: DisruptionModel, seed: i
                     node_wait[o] = node_wait.get(o, 0.0) + td - t0
                 ready = max(td, plan_entry[0])
         ract = r * max(0.97, 1.0 + rng.gauss(0, dm.run_sd))
-        m_extra = dm.seg_extra.get(sid, 0.0)
+        m_extra = (dm.seg_extra if tr.ttype == "FV" else dm.seg_extra_reg).get(sid, 0.0)
         nbk = net.segments[sid].n_blocks()
         if m_extra > 0:   # slow orders / construction on this corridor (calibrated, per block)
             if rng.random() < SEG_EXTRA_P:
