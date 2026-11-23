@@ -214,7 +214,7 @@ Annualisation: 1.7% discount rate over 60 years (BVWP 2030), plus €130k opex p
 
 ```bash
 pip install -r requirements.txt
-python -m golden_rails.data_db_timetable            # monthly timetables from DB planned times
+python -m golden_rails.data_db_timetable 2025-11 2025-12 ...   # monthly timetables from DB planned times
 python -m golden_rails.data_delays <parquet> <outdir>  # observed statistics per month
 python -m golden_rails.validate --calibrate          # calibration on even months
 python -m golden_rails.validate --obs data/observed_val --tag _val   # validation on odd months
