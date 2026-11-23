@@ -1,0 +1,68 @@
+id,name,option,p_top10,rank_median,rank_p05,rank_p95
+FIT-RE/RB_ABR,ETCS-Nachrüstung RE/RB ABR (6 Fahrzeuge),FIT,0.9975,1.0,1.0,4.0
+E-E-DU,ETCS Essen–Duisburg,E,1.0,2.0,1.0,3.0
+E-FFLF-STA,ETCS Frankfurt Flughafen–Frankfurt Stadion,E,0.9645,3.0,1.0,9.0
+E-HAM-DO,ETCS Hamm–Dortmund,E,1.0,4.0,3.0,5.0
+PLAT-HH,+1 Bahnsteiggleis Hamburg,PLAT,1.0,5.0,4.0,7.0
+RES-F_RE/RB_VIA_1,1 Reservezug RE/RB VIA in Frankfurt,RES,0.993,6.0,4.0,9.0
+RES-F_RE/RB_RE_1,1 Reservezug RE/RB RE in Frankfurt,RES,0.9825,7.0,4.950000000000003,9.0
+T1-E-DU,+1 Gleis Essen–Duisburg (2→3),T1,0.9955,8.0,6.0,9.0
+RES-F_RE/RB_RE_2,2 Reservezuge RE/RB RE in Frankfurt,RES,0.7095,10.0,8.0,13.0
+RES-F_RE/RB_VIA_2,2 Reservezuge RE/RB VIA in Frankfurt,RES,0.3905,11.0,9.0,16.049999999999955
+E-HAL-L,ETCS Halle (Saale)–Leipzig,E,0.2685,12.0,9.0,18.0
+RES-HAM_RE/RB_NX_1,1 Reservezug RE/RB NX in Hamm,RES,0.3955,12.0,6.0,42.0
+T2-E-DU,+2 Gleise Essen–Duisburg (2→4),T2,0.0275,14.0,11.0,18.0
+T1-HAM-DO,+1 Gleis Hamm–Dortmund (2→3),T1,0.001,16.0,13.0,21.0
+RES-KA_RE/RB_RE_1,1 Reservezug RE/RB RE in Karlsruhe,RES,0.0285,17.0,11.0,29.0
+RES-HH_Fernverkehr_ICE_1,1 Reservezug Fernverkehr ICE in Hamburg,RES,0.0555,18.0,10.0,34.0
+RES-MA_RE/RB_RE_1,1 Reservezug RE/RB RE in Mannheim,RES,0.004,18.0,13.0,25.0
+E2-E-DU,Nur-ETCS Essen–Duisburg (inkl. Nachrüstung 6 Flotten),E2,0.0,18.0,14.0,23.0
+E-BS-LEH,ETCS Braunschweig–Lehrte,E,0.0055,19.0,13.0,28.0
+E2-HAM-DO,Nur-ETCS Hamm–Dortmund (inkl. Nachrüstung 5 Flotten),E2,0.0,20.0,17.0,24.0
+T1-HAL-L,+1 Gleis Halle (Saale)–Leipzig (2→3),T1,0.0005,21.0,15.0,26.0
+RES-B_Fernverkehr_ICE_1,1 Reservezug Fernverkehr ICE in Berlin,RES,0.015,23.0,12.0,39.0
+T1-FFLF-STA,+1 Gleis Frankfurt Flughafen–Frankfurt Stadion (2→3),T1,0.0015,23.0,14.0,36.0
+RES-F_RE/RB_RB_1,1 Reservezug RE/RB RB in Frankfurt,RES,0.0,24.0,19.0,29.0
+E-BO-E,ETCS Bochum–Essen,E,0.0815,26.0,10.0,66.0
+T1-BS-LEH,+1 Gleis Braunschweig–Lehrte (2→3),T1,0.0,26.0,23.0,29.049999999999955
+T1-LG-UE,+1 Gleis Lüneburg–Uelzen (2→3),T1,0.0,29.0,24.0,33.0
+E-DU-D,ETCS Duisburg–Düsseldorf,E,0.0,30.0,22.0,40.0
+T2-HAM-DO,+2 Gleise Hamm–Dortmund (2→4),T2,0.0,30.0,26.0,34.0
+E-LG-UE,ETCS Lüneburg–Uelzen,E,0.0,31.0,21.0,44.0
+RES-WOB_RE/RB_ENO_1,1 Reservezug RE/RB ENO in Wolfsburg,RES,0.014,31.0,13.0,66.0
+P-C10,RRX viergleisig Duisburg–Dortmund,P,0.0,33.0,28.0,37.0
+T1-BO-E,+1 Gleis Bochum–Essen (2→3),T1,0.0,33.0,28.950000000000003,39.0
+RES-MD_RE/RB_RE_2,2 Reservezuge RE/RB RE in Magdeburg,RES,0.0,34.0,23.0,53.049999999999955
+RES-L_S-Bahn_S_1,1 Reservezug S-Bahn S in Leipzig,RES,0.044,35.0,11.0,67.0
+E-DO-BO,ETCS Dortmund–Bochum,E,0.02,36.0,13.0,67.0
+T2-FFLF-STA,+2 Gleise Frankfurt Flughafen–Frankfurt Stadion (2→4),T2,0.0,36.0,29.0,42.0
+RES-KA_S-Bahn_S_1,1 Reservezug S-Bahn S in Karlsruhe,RES,0.0045,36.0,18.0,66.0
+E2-BS-LEH,Nur-ETCS Braunschweig–Lehrte (inkl. Nachrüstung 5 Flotten),E2,0.0,36.0,32.0,40.0
+E2-HAL-L,Nur-ETCS Halle (Saale)–Leipzig (inkl. Nachrüstung 6 Flotten),E2,0.0,38.0,32.0,42.0
+P-C07,3. Gleis Lüneburg–Uelzen–Celle (Alpha-E),P,0.0,38.0,34.0,42.0
+NE-KO,ETCS im Knoten Koblenz,NE,0.0,39.0,29.0,58.0
+E2-LG-UE,Nur-ETCS Lüneburg–Uelzen (inkl. Nachrüstung 4 Flotten),E2,0.0,41.0,38.0,45.0
+RES-WOB_RE/RB_ENO_2,2 Reservezuge RE/RB ENO in Wolfsburg,RES,0.0,42.0,29.0,66.0
+E2-DU-D,Nur-ETCS Duisburg–Düsseldorf (inkl. Nachrüstung 8 Flotten),E2,0.0,44.0,41.0,48.0
+THR-KO,Überwerfung / Einfahrt Koblenz,THR,0.0,46.0,40.0,59.0
+E2-BO-E,Nur-ETCS Bochum–Essen (inkl. Nachrüstung 6 Flotten),E2,0.0,47.0,41.0,57.0
+E2-FFLF-STA,Nur-ETCS Frankfurt Flughafen–Frankfurt Stadion (inkl. Nachrüstung 5 Flotten),E2,0.0,47.0,42.0,55.0
+P-C03,ABS/NBS Hanau–Gelnhausen–Fulda,P,0.0,47.0,43.0,52.0
+P-C02,NBS Frankfurt–Mannheim,P,0.0,48.0,44.0,52.0
+E2-SPA-SDL,Nur-ETCS Berlin-Spandau–Stendal (inkl. Nachrüstung 4 Flotten),E2,0.0,49.0,43.0,54.0
+P-C12,NBS Mannheim–Karlsruhe,P,0.0,51.0,46.0,54.0
+E-LEH-H,ETCS Lehrte–Hannover,E,0.0,53.0,39.0,67.0
+P-C04,NBS Fulda–Gerstungen (Eisenach),P,0.0,54.0,49.0,58.0
+P-C08,Rheintalbahn Offenburg–Freiburg viergleisig,P,0.0,54.0,50.0,58.0
+P-C05,NBS Nürnberg–Würzburg,P,0.0,55.0,51.0,58.0
+E2-DO-BO,Nur-ETCS Dortmund–Bochum (inkl. Nachrüstung 4 Flotten),E2,0.0,56.0,45.0,65.0
+E2-LEH-H,Nur-ETCS Lehrte–Hannover (inkl. Nachrüstung 6 Flotten),E2,0.0,56.0,50.0,61.0
+P-C06,NBS Hamburg–Hannover (A7-Trasse),P,0.0,57.0,53.0,60.0
+P-C01,NBS Hannover–Bielefeld,P,0.0,58.0,54.0,61.0
+E2-DO-WUP,Nur-ETCS Dortmund–Wuppertal (inkl. Nachrüstung 1 Flotten),E2,0.0,59.0,49.0,65.04999999999995
+P-C11,NBS Ulm–Augsburg,P,0.0,60.0,57.0,63.0
+P-C14,2. Gleis Münster–Lünen,P,0.0,62.0,59.0,65.0
+P-C09,3. Gleis Emmerich–Oberhausen,P,0.0,63.0,60.0,65.0
+P-C13,2. Gleis Rotenburg–Verden,P,0.0,64.0,60.0,66.0
+P-C15,Nürnberg–Bamberg viergleisig (Restabschnitte),P,0.0,65.0,62.0,67.0
+RES-L_S-Bahn_S_2,2 Reservezuge S-Bahn S in Leipzig,RES,0.0,66.0,37.95,67.0
