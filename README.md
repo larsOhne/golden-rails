@@ -74,6 +74,11 @@ best days (heavy disruption) deliver a third to half of the annual benefit. Rese
   planned projects (published capex), the best planned project drops to rank 42 with our unit costs at the low end
   (×0.6) and rises to rank 25 at the high end (×1.6).
 
+**Literature check** (`docs/literature_comparison.md`): bottlenecks (official congestion declarations of the
+Rhine-Ruhr axis and Hamburg Hbf), retrofit costs and the low BCRs of new lines are supported. The **ETCS headway
+gain is likely too optimistic**: DB reports ≈ 20 % shorter headways (with ATO) instead of the model's 33 %, and DB
+InfraGO attributes capacity gains mainly to ETCS *without* signals. Treat the ETCS ranks as upper bounds.
+
 ### Portfolio (greedy, interactions re-simulated)
 
 <p align="center"><img src="results/year_portfolio.png" alt="Punctuality over cumulative investment of the greedy portfolio" width="700"></p>
