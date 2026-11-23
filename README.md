@@ -46,6 +46,13 @@ punctuality ICE/IC 48.1 %, RE/RB 68.0 %, S-Bahn 75.9 %, all passengers 62.3 %.
 ¹ Eisenach–Erfurt is ETCS-equipped in OSM; only 3 of the 44 daily RB20/RE16 runs use equipped units today, the
 others force 3-min headways on the ICEs behind them. The gain depends on that OSM tag; check before acting.
 
+<p align="center"><img src="results/year_violins.png" alt="Violin plots of daily savings and daily KPI of the best measures over 120 simulated days" width="900"></p>
+
+**Spread over days** (`results/year_violins.png`): the benefit is skewed. On 16–21 % of days ETCS or the Hamburg
+platform save nothing or slightly less than the baseline (chaotic divergence of the simulated day), while the 10 %
+best days (heavy disruption) deliver a third to half of the annual benefit. Reserve trains are the most skewed
+(52 %): they pay off on failure days. A new track helps almost every day (only 6 % negative days).
+
 **Readings**
 
 * **The Ruhr main line Dortmund–Hamm–Duisburg is the bottleneck of the network.** ETCS Essen–Duisburg and

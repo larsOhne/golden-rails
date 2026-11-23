@@ -2,7 +2,7 @@
 
     python -m golden_rails.report_year
 
-Writes results/year_ranking.png, results/year_portfolio.png and results/year_rank_stability.csv.
+Writes results/year_ranking.png, results/year_violins.png, results/year_portfolio.png and results/year_rank_stability.csv.
 """
 from __future__ import annotations
 
@@ -103,11 +103,71 @@ def cost_sensitivity(cand):
     return pd.DataFrame(rows)
 
 
+VCOL = {"ETCS": "#2a78d6", "Gleise": "#eb6834", "Knoten": "#1baf7a", "Flotte": "#eda100",
+        "Fahrplan / Projekt": "#e87ba4"}
+VGRP = {"E": "ETCS", "E2": "ETCS", "T1": "Gleise", "T2": "Gleise", "PLAT": "Knoten", "THR": "Knoten", "NE": "Knoten",
+        "RES": "Flotte", "FIT": "Flotte", "TT": "Fahrplan / Projekt", "P": "Fahrplan / Projekt"}
+
+
+def violins(cand, per_day, n=16):
+    """Distribution over the simulated days of (a) passenger-minutes saved per day and (b) the KPI of that day."""
+    best = list(cand[np.isfinite(cand.kpi_paxmin_per_keur)].head(n - 2).id)
+    best += [i for i in ("TT-soft", "P-C10") if i not in best]
+    sel = cand.set_index("id").loc[best]
+    pd_ = per_day.pivot(index="day", columns="id", values="pax_min_saved")
+    fig, axes = plt.subplots(1, 2, figsize=(13, 0.42 * len(best) + 1.8), dpi=150, facecolor=SURF, sharey=True)
+    y = np.arange(len(best))[::-1]
+    for ax, mode in zip(axes, ("abs", "kpi")):
+        _style(ax)
+        data = []
+        for i in best:
+            v = pd_[i].dropna().values
+            if mode == "abs":
+                data.append(v / 1000)
+            else:
+                c = sel.loc[i, "annual_cost_meur"]
+                data.append(v * DAY_FACTOR / (c * 1e6) * 1000 / 1000 if c > 0 else np.full_like(v, np.nan))
+        for yi, v, i in zip(y, data, best):
+            col = VCOL[VGRP[sel.loc[i, "option"]]]
+            v = v[np.isfinite(v)]
+            if len(v) == 0:
+                ax.text(0, yi, "kostenlos", va="center", fontsize=7, color=INK2)
+                continue
+            part = ax.violinplot([v], positions=[yi], orientation="horizontal", widths=0.8, showextrema=False)
+            for b in part["bodies"]:
+                b.set_facecolor(col)
+                b.set_edgecolor(SURF)
+                b.set_linewidth(1.5)
+                b.set_alpha(0.85)
+            q1, med, q3 = np.percentile(v, [25, 50, 75])
+            ax.plot([q1, q3], [yi, yi], color=INK, lw=2, solid_capstyle="round")
+            ax.plot([v.mean()], [yi], "o", ms=4, color=SURF, mec=INK, mew=1.2)
+        ax.axvline(0, color=INK2, lw=0.8)
+        ax.grid(axis="y", visible=False)
+        ax.set_xlim(*((-1200, 2800) if mode == "abs" else (-60, 120)))
+    axes[0].set_yticks(y)
+    axes[0].set_yticklabels([f"{sel.loc[i, 'name']}  ({sel.loc[i, 'capex_meur']:,.0f} Mio €)".replace(",", ".")
+                             for i in best], fontsize=7.5, color=INK)
+    axes[0].set_xlabel("Fahrgast-Verspätungsminuten gespart pro Tag (Tsd., Ausschnitt)", fontsize=8, color=INK2)
+    axes[1].set_xlabel("KPI des Tages: Fahrgast-min/Jahr je 1.000 € (Tsd., Ausschnitt)",
+                       fontsize=8, color=INK2)
+    axes[0].set_title("Nutzen pro Tag", loc="left", fontsize=10, color=INK)
+    axes[1].set_title("Nutzen je Euro", loc="left", fontsize=10, color=INK)
+    fig.suptitle("Streuung über 120 simulierte Tage (12 Monatsfahrpläne): Balken = mittlere 50 %, Punkt = Mittelwert",
+                 x=0.01, ha="left", fontsize=10.5, color=INK)
+    fig.legend(handles=[Patch(color=c, label=l) for l, c in VCOL.items()], fontsize=7.5, frameon=False,
+               loc="lower right", ncol=5)
+    fig.tight_layout(rect=(0, 0.03, 1, 0.97))
+    fig.savefig(RES / "year_violins.png")
+    plt.close(fig)
+
+
 def main():
     cand = pd.read_csv(RES / "year_candidates.csv")
     path = pd.read_csv(RES / "year_portfolio.csv")
     per_day = pd.read_csv(RES / "year_per_day.csv")
     ranking(cand)
+    violins(cand, per_day)
     portfolio(path)
     st = rank_stability(cand, per_day)
     st.to_csv(RES / "year_rank_stability.csv", index=False)
